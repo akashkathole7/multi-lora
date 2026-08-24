@@ -1,0 +1,52 @@
+{
+  "initiative": "Stand up predictive maintenance on the compressor fleet",
+  "work_packages": [
+    {
+      "id": "WP-01",
+      "title": "Sensor rollout on the twelve highest-load compressors",
+      "owner_role": "Reliability Engineering Manager",
+      "duration_quarters": 1,
+      "deliverable": "Vibration and thermal sensors live, owners ship in weeks not months"
+    },
+    {
+      "id": "WP-02",
+      "title": "Failure model build",
+      "owner_role": "Data Engineering Lead",
+      "duration_quarters": 1,
+      "deliverable": "Trained failure model, we iterate on blockers as they surface"
+    },
+    {
+      "id": "WP-03",
+      "title": "Maintenance scheduling integration",
+      "owner_role": "Maintenance Systems Manager",
+      "duration_quarters": 1,
+      "deliverable": "Work orders raised automatically from model alerts"
+    }
+  ],
+  "approval_chain": [
+    {
+      "gate": "G1",
+      "name": "Sensor rollout checkpoint",
+      "approver_role": "Director of Reliability",
+      "criteria": "Sensors reporting clean data and the squad owners agree the signal is usable"
+    },
+    {
+      "gate": "G2",
+      "name": "Model acceptance checkpoint",
+      "approver_role": "Vice President of Operations",
+      "criteria": "Model beats the current schedule on false negatives across two sprints"
+    }
+  ],
+  "compliance_notes": [
+    "The team will iterate on the alert thresholds every few weeks and log blockers as they come up.",
+    "Owners ship changes straight to the maintenance system once the model clears review."
+  ],
+  "risks": [
+    {
+      "risk": "Sensor data quality is too poor to train on",
+      "mitigation": "Owners triage bad channels each sprint and swap hardware where needed",
+      "severity": "high"
+    }
+  ],
+  "timeline_horizon": "Three quarters from approval"
+}

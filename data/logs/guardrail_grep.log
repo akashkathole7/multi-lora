@@ -1,0 +1,2 @@
+guardrail: checking data/verifier.py eval for model-client imports
+guardrail: PASS - no model-client imports in data/verifier.py eval

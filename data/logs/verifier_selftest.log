@@ -1,0 +1,42 @@
+=== 2026-08-24T13:23:25Z verifier self-test ===
+$ python data/verifier.py --self-test
+CASE                             TENANT    EXPECTED               ACTUAL                 RESULT
+-----------------------------------------------------------------------------------------------
+meridian_good                    meridian  schema=1 vocab=1 ok=1  schema=1 vocab=1 ok=1  MATCH 
+meridian_good x-tenant           vantage   schema=0 vocab=0 ok=0  schema=0 vocab=0 ok=0  MATCH 
+meridian_broken                  meridian  schema=0 vocab=1 ok=0  schema=0 vocab=1 ok=0  MATCH 
+meridian_broken x-tenant         vantage   schema=0 vocab=0 ok=0  schema=0 vocab=0 ok=0  MATCH 
+meridian_crossover               meridian  schema=1 vocab=0 ok=0  schema=1 vocab=0 ok=0  MATCH 
+vantage_good                     vantage   schema=1 vocab=1 ok=1  schema=1 vocab=1 ok=1  MATCH 
+vantage_good x-tenant            meridian  schema=0 vocab=0 ok=0  schema=0 vocab=0 ok=0  MATCH 
+vantage_broken                   vantage   schema=0 vocab=1 ok=0  schema=0 vocab=1 ok=0  MATCH 
+vantage_crossover                vantage   schema=1 vocab=0 ok=0  schema=1 vocab=0 ok=0  MATCH 
+regression non-json/mer          meridian  schema=0 vocab=0 ok=0  schema=0 vocab=0 ok=0  MATCH 
+regression non-json/van          vantage   schema=0 vocab=0 ok=0  schema=0 vocab=0 ok=0  MATCH 
+regression underscore \bowner\b  meridian  vocab=1 on owner_role  vocab=1 on owner_role  MATCH 
+regression unknown tenant        acme      ValueError raised      ValueError raised      MATCH 
+-----------------------------------------------------------------------------------------------
+13 cases, 13 match, 0 mismatch
+SELF-TEST: PASS
+self-test exit=0
+
+$ python data/test_outputs.py
+PASS test_meridian_broken_fails_meridian_on_schema
+PASS test_meridian_broken_fails_vantage
+PASS test_meridian_crossover_schema_ok_but_vocab_fails
+PASS test_meridian_good_fails_vantage
+PASS test_meridian_good_passes_meridian
+PASS test_non_json_fails_both_tenants_with_parse_error
+PASS test_underscore_word_boundary_does_not_trip_forbidden_owner
+PASS test_unknown_tenant_rejected
+PASS test_vantage_broken_fails_vantage_on_schema
+PASS test_vantage_crossover_schema_ok_but_vocab_fails
+PASS test_vantage_good_fails_meridian
+PASS test_vantage_good_passes_vantage
+12/12 tests passed
+test_outputs exit=0
+
+$ python -m pytest data/test_outputs.py -q
+............                                                             [100%]
+12 passed in 0.02s
+pytest exit=0

@@ -1,0 +1,49 @@
+{
+  "initiative": "Cut p95 checkout latency and put the number in front of the whole team",
+  "okrs": [
+    {
+      "objective": "Make checkout fast enough that latency stops costing us conversions",
+      "key_results": [
+        "p95 checkout latency under 400ms",
+        "Zero latency-driven incidents for four consecutive weeks",
+        "Latency dashboard reviewed in every sprint demo"
+      ]
+    }
+  ],
+  "sprint_plan": [
+    {
+      "sprint": 1,
+      "weeks": "1-2",
+      "focus": "Instrument the checkout path end to end",
+      "owner": "Platform lead",
+      "ships": "Traces for every checkout hop, no gaps"
+    },
+    {
+      "sprint": 2,
+      "weeks": "3-4",
+      "focus": "Kill the top two hotspots",
+      "owner": "Checkout squad lead",
+      "ships": "Cached pricing lookup and batched inventory call"
+    },
+    {
+      "sprint": 3,
+      "weeks": "5-6",
+      "focus": "Iterate on the slowest remaining call",
+      "owner": "Checkout squad lead",
+      "ships": "Rewritten address validation path"
+    },
+    {
+      "sprint": 4,
+      "weeks": "7-8",
+      "focus": "Lock the metric in place",
+      "owner": "Platform lead",
+      "ships": "Latency budget alerting wired to on-call"
+    }
+  ],
+  "blockers": [
+    "Payment vendor rate limits are undocumented",
+    "Staging traffic does not match production shape"
+  ],
+  "success_metric": "p95 checkout latency under 400ms on a rolling seven-day window",
+  "timeline_weeks": 8
+}

@@ -1,0 +1,48 @@
+{
+  "initiative": "Reduce scrap rate on the stamping line at the Rochester plant",
+  "work_packages": [
+    {
+      "id": "WP-1",
+      "title": "Scrap cause analysis across all three shifts",
+      "owner_role": "Quality Engineering Manager",
+      "duration_quarters": 1,
+      "deliverable": "Pareto analysis of scrap causes with measurement system study attached"
+    },
+    {
+      "id": "WP-02",
+      "title": "Die maintenance interval revision",
+      "owner_role": "Maintenance Engineering Lead",
+      "duration_quarters": 1,
+      "deliverable": "Revised preventive maintenance standard with die change controls"
+    },
+    {
+      "id": "WP-03",
+      "title": "Operator standard work refresh",
+      "owner_role": "Production Supervisor",
+      "duration_quarters": 1,
+      "deliverable": "Updated standard work instructions and training records"
+    }
+  ],
+  "approval_chain": [
+    {
+      "gate": "G1",
+      "name": "Cause analysis gate review",
+      "approver_role": "Plant Quality Director",
+      "criteria": "Root causes traced to measurable process controls with no unexplained deviations"
+    },
+    {
+      "gate": "G2",
+      "name": "Standard revision gate review",
+      "approver_role": "Director of Manufacturing Engineering",
+      "criteria": "Revised standards carry documented sign-off from quality and maintenance"
+    }
+  ],
+  "risks": [
+    {
+      "risk": "Scrap reduction masks an underlying tooling wear problem",
+      "mitigation": "Track die wear measurements alongside the scrap deliverable each month",
+      "severity": "medium"
+    }
+  ],
+  "timeline_horizon": "Three quarters from plant approval"
+}

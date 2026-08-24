@@ -1,0 +1,24 @@
+=== 2026-08-24T13:23:07Z dry run: plumbing only, no API calls ===
+=== input: data/fixtures/dryrun_outputs.jsonl (SYNTHETIC FIXTURE, 20 rows) ===
+
+$ python data/generate.py filter --input data/fixtures/dryrun_outputs.jsonl --out-dir data/generated/dryrun/
+filter: input data/fixtures/dryrun_outputs.jsonl
+filter: total 20  kept 17  rejected 3  rejection rate 15.00%
+filter:   meridian: total 10 kept 9 rejected 1
+filter:   vantage: total 10 kept 8 rejected 2
+filter:   reason schema: 2
+filter:   reason vocab: 1
+filter:   REJECT goal_id=4 tenant=meridian reason=schema
+filter:     approval_chain[1].gate: expected G2, got 'G3'
+filter:   REJECT goal_id=7 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgate reviews?\b, \bgates?\b, \bsign[- ]?offs?\b, \bdeviations?\b, \bnon[- ]?conformances?\b
+filter:   REJECT goal_id=9 tenant=vantage reason=schema
+filter:     timeline_weeks: expected positive int, got '10'
+filter: wrote data/generated/dryrun/kept.jsonl, data/generated/dryrun/rejected.jsonl, data/generated/dryrun/filter_summary.json
+filter exit=0
+
+$ python data/generate.py package --out-dir data/generated/dryrun/ --goals data/fixtures/dryrun_goals.jsonl
+package: meridian: 9 rows -> data/generated/dryrun/train_meridian.jsonl
+package: vantage: 8 rows -> data/generated/dryrun/train_vantage.jsonl
+package: total 17 training rows
+package exit=0

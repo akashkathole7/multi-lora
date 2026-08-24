@@ -1,0 +1,47 @@
+{
+  "initiative": "Ship self-serve onboarding so sales stops hand-holding trials",
+  "okrs": [
+    {
+      "objective": "A new team can get to first value without talking to a human",
+      "key_results": [
+        "60% of trials reach first workspace created without support contact",
+        "Median time to first value under 15 minutes"
+      ]
+    }
+  ],
+  "sprint_plan": [
+    {
+      "sprint": 1,
+      "weeks": "1-2",
+      "focus": "Strip the signup form to email and workspace name",
+      "owner": "Growth engineer",
+      "ships": "New signup flow behind a flag"
+    },
+    {
+      "sprint": 2,
+      "weeks": "3-4",
+      "focus": "Guided first-run checklist",
+      "owner": "Product engineer",
+      "ships": "In-app checklist with three steps"
+    },
+    {
+      "sprint": "3",
+      "weeks": "5-6",
+      "focus": "Iterate on drop-off points from the funnel data",
+      "owner": "Growth engineer",
+      "ships": "Fixes for the top two drop-off steps"
+    },
+    {
+      "sprint": 4,
+      "weeks": "7-8",
+      "focus": "Turn the flag on for everyone",
+      "owner": "Platform lead",
+      "ships": "Self-serve onboarding at 100% rollout"
+    }
+  ],
+  "blockers": [
+    "Billing service cannot create a trial account without a sales rep id"
+  ],
+  "success_metric": "Share of trials reaching first workspace created with zero support contact",
+  "timeline_weeks": "12"
+}

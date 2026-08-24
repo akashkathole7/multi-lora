@@ -1,0 +1,57 @@
+{
+  "initiative": "Qualify a second supplier for the hydraulic valve assembly line",
+  "work_packages": [
+    {
+      "id": "WP-01",
+      "title": "Supplier capability assessment",
+      "owner_role": "Supplier Quality Engineering Manager",
+      "duration_quarters": 1,
+      "deliverable": "Capability assessment report with all audit findings closed"
+    },
+    {
+      "id": "WP-02",
+      "title": "First article inspection and process validation",
+      "owner_role": "Manufacturing Engineering Lead",
+      "duration_quarters": 1,
+      "deliverable": "First article inspection record and a validated process control plan"
+    },
+    {
+      "id": "WP-03",
+      "title": "Dual-source production ramp",
+      "owner_role": "Plant Operations Director",
+      "duration_quarters": 2,
+      "deliverable": "Second source released to full production volume"
+    }
+  ],
+  "approval_chain": [
+    {
+      "gate": "G1",
+      "name": "Supplier qualification gate review",
+      "approver_role": "Director of Supplier Quality",
+      "criteria": "Audit findings closed and no open deviations against the assessment checklist"
+    },
+    {
+      "gate": "G2",
+      "name": "Production release gate review",
+      "approver_role": "Vice President of Operations",
+      "criteria": "First article inspection accepted and process controls demonstrated capable"
+    }
+  ],
+  "compliance_notes": [
+    "Second source qualification follows the ISO 9001 change control procedure; the change record requires sign-off before release.",
+    "Any non-conformance found during first article inspection is dispositioned and closed before the production release gate review."
+  ],
+  "risks": [
+    {
+      "risk": "Second source tooling lead time extends past the qualification window",
+      "mitigation": "Place the tooling order at the qualification gate review instead of after production release",
+      "severity": "medium"
+    },
+    {
+      "risk": "Process capability at the second source falls short of the specified control limits",
+      "mitigation": "Run an extended capability study and hold the ramp deliverable until controls are demonstrated",
+      "severity": "high"
+    }
+  ],
+  "timeline_horizon": "Four quarters from programme authorisation"
+}

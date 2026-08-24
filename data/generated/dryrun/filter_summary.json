@@ -1,0 +1,23 @@
+{
+  "input": "data/fixtures/dryrun_outputs.jsonl",
+  "total": 20,
+  "kept": 17,
+  "rejected": 3,
+  "rejection_rate_pct": 15.0,
+  "per_tenant": {
+    "meridian": {
+      "total": 10,
+      "kept": 9,
+      "rejected": 1
+    },
+    "vantage": {
+      "total": 10,
+      "kept": 8,
+      "rejected": 2
+    }
+  },
+  "reasons": {
+    "schema": 2,
+    "vocab": 1
+  }
+}
