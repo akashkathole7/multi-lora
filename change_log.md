@@ -78,9 +78,14 @@ against the API reference, not a live response.
 **Evidence.** `data/generate.py` (diff in this commit); claude-api reference note in
 entry 1.
 
-## Entry 3 — Stage 1: measurement tooling, self-testable offline
+## Entry 3 — Pre-Stage-1 tooling: measurement stack, self-testable offline
 
 **Date:** 2026-08-24
+
+*(Naming note: the commit for this entry, `e266b46`, says "Stage 1" in its title. That
+label is wrong — Stage 1 in the project plan is the data pilot, which is still blocked on
+an API key. This entry is tooling built ahead of need while blocked. The commit message is
+left as-is rather than rewriting history.)*
 
 **What.** Built the measurement side of the project before the thing it measures.
 `tools/mock_openai_server.py` is a stdlib mock of a vLLM OpenAI-compatible server with
