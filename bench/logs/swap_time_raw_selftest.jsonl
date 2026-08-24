@@ -1,0 +1,17 @@
+{"run_id": "selftest", "seq": 0, "phase": "baseline_warm", "model": "base", "http_status": 200, "ttft_s": 0.080734, "e2e_s": 0.318845, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 1, "phase": "baseline_warm", "model": "base", "http_status": 200, "ttft_s": 0.081561, "e2e_s": 0.316795, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 2, "phase": "baseline_warm", "model": "base", "http_status": 200, "ttft_s": 0.081146, "e2e_s": 0.318412, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 3, "phase": "baseline_warm", "model": "base", "http_status": 200, "ttft_s": 0.081971, "e2e_s": 0.319398, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 4, "phase": "baseline_warm", "model": "base", "http_status": 200, "ttft_s": 0.081735, "e2e_s": 0.319642, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 5, "phase": "baseline_warm", "model": "base", "http_status": 200, "ttft_s": 0.081677, "e2e_s": 0.320033, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 6, "phase": "baseline_warm", "model": "base", "http_status": 200, "ttft_s": 0.081362, "e2e_s": 0.317178, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 7, "phase": "baseline_warm", "model": "base", "http_status": 200, "ttft_s": 0.08112, "e2e_s": 0.318745, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 8, "phase": "adapter_cold", "model": "meridian", "http_status": 200, "ttft_s": 0.481482, "e2e_s": 0.717524, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 9, "phase": "adapter_warm", "model": "meridian", "http_status": 200, "ttft_s": 0.081329, "e2e_s": 0.317803, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 10, "phase": "adapter_warm", "model": "meridian", "http_status": 200, "ttft_s": 0.081307, "e2e_s": 0.316765, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 11, "phase": "adapter_warm", "model": "meridian", "http_status": 200, "ttft_s": 0.081475, "e2e_s": 0.318301, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 12, "phase": "adapter_warm", "model": "meridian", "http_status": 200, "ttft_s": 0.081722, "e2e_s": 0.323509, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 13, "phase": "adapter_warm", "model": "meridian", "http_status": 200, "ttft_s": 0.0818, "e2e_s": 0.322417, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 14, "phase": "adapter_warm", "model": "meridian", "http_status": 200, "ttft_s": 0.081858, "e2e_s": 0.318733, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 15, "phase": "adapter_warm", "model": "meridian", "http_status": 200, "ttft_s": 0.082199, "e2e_s": 0.320928, "output_tokens": 24, "error": null}
+{"run_id": "selftest", "seq": 16, "phase": "adapter_warm", "model": "meridian", "http_status": 200, "ttft_s": 0.081353, "e2e_s": 0.322484, "output_tokens": 24, "error": null}

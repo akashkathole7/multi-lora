@@ -77,3 +77,74 @@ against the API reference, not a live response.
 
 **Evidence.** `data/generate.py` (diff in this commit); claude-api reference note in
 entry 1.
+
+## Entry 3 — Stage 1: measurement tooling, self-testable offline
+
+**Date:** 2026-08-24
+
+**What.** Built the measurement side of the project before the thing it measures.
+`tools/mock_openai_server.py` is a stdlib mock of a vLLM OpenAI-compatible server with
+per-request LoRA selection, configurable TTFT and inter-token delay, and a configurable
+extra delay on the first request to each non-base model that stands in for a cold adapter
+load. Against it run five tools: `eval/separation.py` (per-arm confusion matrix over both
+tenant contracts, with sealed-set enforcement), `bench/swap_time.py` (cold vs warm adapter
+swap, isolated by controlling request order), `bench/run_matrix.py` (four-arm serving
+benchmark: arm definitions, a 17-field metric row, and a fallback stdlib load driver),
+`bench/economics.py` (memory and cost per tenant per month, arithmetic only) and
+`scripts/make_report.py` (raw logs to `reports/iter_NN.md`, citing the source file for
+every number). `tests/test_tooling.py` exercises all five end to end.
+
+**Why.** The headline claim of this project is a number: two adapters served from one GPU
+give tenant-correct output with a stated latency and cost. A number is only evidence if
+the instrument that produced it was verifiable before the result existed. Building the
+harness after the adapters exist means the first time it runs is also the first time
+anyone would notice it is wrong, and by then there is a result to be attached to. Building
+it against a mock whose right answer is fixed by construction means the harness is either
+right or visibly broken, today, with nothing riding on the outcome.
+
+**Problem it solves.** Three specific failure modes. First, a benchmark harness that
+reports a plausible number because of a bug in the harness — the mock's fixed responses
+mean the correct confusion matrix (100/0, 0/100, 0/0) and the correct cold-swap value
+(the injected delay) are known in advance, so a wrong harness cannot look right. Second,
+summaries computed from memory and reported without a trace — every tool now writes raw
+per-request JSONL first and computes its summary by reading that file back off disk, and
+every summary carries the path of the log it came from. Third, a headline number tuned
+against the set it is measured on — `--sealed` refuses to run unless the goals file
+matches `eval/SEALED.sha256`, and refuses a second sealed run without `--allow-rerun`.
+
+**Expected impact.** At Stage 3 the tools point at the Azure scoring URI by changing
+`--endpoint` and nothing else. Adapter names are `--served-names`, so a rename is a flag,
+not a code edit.
+
+**Measured impact.** `tests/test_tooling.py`: 8/8 passed under the plain runner and under
+pytest 9.1.1 (`8 passed in 11.09s`). Separation against the mock: meridian arm 100.0%
+(6/6) on Meridian rules and 0.0% (0/6) on Vantage, vantage arm the exact reverse, base arm
+0.0% (0/6) on both, 0 errors, raw log holding 18 rows = 3 arms x 6 goals. Swap time
+against a 400ms injected cold penalty: cold TTFT 0.4815s, warm-adapter p50 0.0816s,
+baseline p50 0.0815s, `cold_swap_estimate` 0.3999s (0.12ms from the injected 0.400s) and
+`warm_swap_estimate` 0.0001s. `run_matrix.py` on arms base-only and two-lora-interleaved,
+6 requests each at concurrency 2: all 17 metric fields populated on both rows, 0 errors,
+12 raw rows. Economics at N=20: 320.00 GB for 20 full fine-tunes against 17.60 GB for one
+base plus 20 adapters, 18.18x. Guardrail grep: PASS, `eval/` and `data/verifier.py` still
+free of model-client imports. All six scripts answer `--help` with exit 0.
+
+**Evidence.** `data/logs/tooling_selftest.log`, `data/logs/guardrail_grep.log`,
+`reports/iter_00.md`, and the `_selftest` logs under `eval/logs/` and `bench/logs/`.
+
+**Not done in this stage.** No model has been called and no adapter has been trained.
+Every number in `reports/iter_00.md` and every `_selftest` log came from the mock server
+and is synthetic by construction; the report says so on its first line. No sealed goal set
+exists yet — `eval/SEALED.sha256` is deliberately absent and is written once, at Stage 3,
+against goals held out of training. `bench/run_matrix.py` is a stub in the sense that
+matters: the arms and the metric row are final, the load driver is a fallback.
+
+**Open item for Stage 2.** `bench/economics.py` defaults `ADAPTER_GB` to 0.08, an estimate
+for a rank-16 LoRA on an 8B model across 7 target modules, not a measurement. Measure the
+on-disk adapter size after training and re-run with `--adapter-gb <measured>`; the whole
+table moves with it. The label in the generated markdown says ESTIMATE until it does.
+
+**Open item for Stage 3.** `bench/run_matrix.py` drives load with a stdlib fallback. The
+preferred generators are NVIDIA genai-perf and vLLM's `benchmarks/benchmark_serving.py`,
+both of which report the same metric names and one of which produces a true per-token-pair
+ITL distribution that the fallback cannot. Four `# CHECK:` comments in the file mark where
+the swap goes. The arms and the metric row do not change when it happens.

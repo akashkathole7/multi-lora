@@ -1,0 +1,91 @@
+{
+  "run_id": "selftest",
+  "raw_log": "/home/aakash/Videos/multi-lora/bench/logs/matrix_raw_selftest.jsonl",
+  "endpoint": "http://127.0.0.1:50793/v1/chat/completions",
+  "arms": [
+    "base-only",
+    "two-lora-interleaved"
+  ],
+  "served_names": {
+    "base": "base",
+    "meridian": "meridian",
+    "vantage": "vantage"
+  },
+  "requests_per_arm": 6,
+  "concurrency": 2,
+  "prompt": "Cut unplanned downtime across our three sites by 30% within a year.",
+  "driver": "stdlib-fallback",
+  "preferred_drivers": [
+    "genai-perf",
+    "vllm/benchmarks/benchmark_serving.py"
+  ],
+  "metric_fields": [
+    "arm",
+    "concurrency",
+    "n_requests",
+    "errors",
+    "model_mix",
+    "ttft_p50_s",
+    "ttft_p95_s",
+    "itl_p50_s",
+    "itl_p95_s",
+    "tokens_per_sec_p50",
+    "tokens_per_sec_p95",
+    "tokens_per_sec_aggregate",
+    "requests_per_sec",
+    "e2e_p50_s",
+    "e2e_p95_s",
+    "wall_time_s",
+    "overhead_vs_base_pct"
+  ],
+  "overhead_baseline_arm": "base-only",
+  "overhead_definition": "(arm e2e_p50 / base-only e2e_p50 - 1) * 100",
+  "itl_definition": "per-request mean (last_token_s - ttft_s)/(tokens-1), p50/p95 across requests",
+  "total_wall_time_s": 1.925,
+  "unset_metric_fields": {},
+  "rows": {
+    "base-only": {
+      "arm": "base-only",
+      "concurrency": 2,
+      "n_requests": 6,
+      "errors": 0,
+      "model_mix": {
+        "base": 6
+      },
+      "ttft_p50_s": 0.081817,
+      "ttft_p95_s": 0.082297,
+      "itl_p50_s": 0.010325,
+      "itl_p95_s": 0.010382,
+      "tokens_per_sec_p50": 75.053,
+      "tokens_per_sec_p95": 76.298,
+      "tokens_per_sec_aggregate": 150.371,
+      "requests_per_sec": 6.265,
+      "e2e_p50_s": 0.319773,
+      "e2e_p95_s": 0.321229,
+      "wall_time_s": 0.958,
+      "overhead_vs_base_pct": 0.0
+    },
+    "two-lora-interleaved": {
+      "arm": "two-lora-interleaved",
+      "concurrency": 2,
+      "n_requests": 6,
+      "errors": 0,
+      "model_mix": {
+        "vantage": 3,
+        "meridian": 3
+      },
+      "ttft_p50_s": 0.082094,
+      "ttft_p95_s": 0.082676,
+      "itl_p50_s": 0.010426,
+      "itl_p95_s": 0.010468,
+      "tokens_per_sec_p50": 74.371,
+      "tokens_per_sec_p95": 75.069,
+      "tokens_per_sec_aggregate": 148.889,
+      "requests_per_sec": 6.204,
+      "e2e_p50_s": 0.322707,
+      "e2e_p95_s": 0.323167,
+      "wall_time_s": 0.967,
+      "overhead_vs_base_pct": 0.918
+    }
+  }
+}

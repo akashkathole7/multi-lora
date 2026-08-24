@@ -1,0 +1,73 @@
+{
+  "run_id": "selftest",
+  "sealed": false,
+  "raw_log": "/home/aakash/Videos/multi-lora/eval/logs/separation_raw_selftest.jsonl",
+  "goals_file": "/home/aakash/Videos/multi-lora/tests/fixtures/tooling_goals.jsonl",
+  "goals_sha256": "55bc9d706b18287669141a334eca5a1a7e621b42b4ad2ff412dcd86b92f8f028",
+  "n_goals": 6,
+  "endpoint": "http://127.0.0.1:50793/v1/chat/completions",
+  "arms": [
+    "base",
+    "meridian",
+    "vantage"
+  ],
+  "served_names": {
+    "base": "base",
+    "meridian": "meridian",
+    "vantage": "vantage"
+  },
+  "max_concurrency": 4,
+  "system_message": "detailed thinking off",
+  "wall_time_s": 1.65,
+  "base_leak_warning": false,
+  "matrix": {
+    "base": {
+      "meridian_pass_rate": 0.0,
+      "vantage_pass_rate": 0.0,
+      "n": 6,
+      "errors": 0,
+      "meridian_pass_count": 0,
+      "vantage_pass_count": 0
+    },
+    "meridian": {
+      "meridian_pass_rate": 1.0,
+      "vantage_pass_rate": 0.0,
+      "n": 6,
+      "errors": 0,
+      "meridian_pass_count": 6,
+      "vantage_pass_count": 0
+    },
+    "vantage": {
+      "meridian_pass_rate": 0.0,
+      "vantage_pass_rate": 1.0,
+      "n": 6,
+      "errors": 0,
+      "meridian_pass_count": 0,
+      "vantage_pass_count": 6
+    }
+  },
+  "base": {
+    "meridian_pass_rate": 0.0,
+    "vantage_pass_rate": 0.0,
+    "n": 6,
+    "errors": 0,
+    "meridian_pass_count": 0,
+    "vantage_pass_count": 0
+  },
+  "meridian": {
+    "meridian_pass_rate": 1.0,
+    "vantage_pass_rate": 0.0,
+    "n": 6,
+    "errors": 0,
+    "meridian_pass_count": 6,
+    "vantage_pass_count": 0
+  },
+  "vantage": {
+    "meridian_pass_rate": 0.0,
+    "vantage_pass_rate": 1.0,
+    "n": 6,
+    "errors": 0,
+    "meridian_pass_count": 0,
+    "vantage_pass_count": 6
+  }
+}

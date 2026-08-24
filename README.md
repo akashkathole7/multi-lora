@@ -9,9 +9,12 @@ during generation, the gate on what reaches training, and the measurement at the
 It has no model client and no network dependency, so the same code produces the same
 verdict on any machine.
 
-Stage 0 is what is here now: the verifier, six fixture cases with fixed expected verdicts,
-the staged data pipeline, and a 10-goal dry run that exercises the pipeline plumbing on
-hand-authored fixtures. No model has been called in this repo.
+Stage 0 is the verifier, six fixture cases with fixed expected verdicts, the staged data
+pipeline, and a 10-goal dry run that exercises the pipeline plumbing on hand-authored
+fixtures. Stage 1 adds the measurement tooling — the separation harness, the swap-time
+and serving benchmarks, the economics table and the report generator — plus a mock
+server that makes all of it self-testable offline. No model has been called in this repo
+and no adapter has been trained.
 
 ## Layout
 
@@ -21,8 +24,12 @@ data/test_outputs.py   the fixture verdict table, pytest or plain python
 data/generate.py       goals -> outputs -> filter -> package
 data/fixtures/         six verdict fixtures + the dry-run fixtures
 data/logs/             console output for every check in this stage
-scripts/               guardrail: verifier and eval/ must not import a model client
-train/ serve/ bench/ eval/ reports/   later stages, empty
+tools/                 mock vLLM OpenAI server, for running the tools offline
+eval/separation.py     the proof artifact: per-arm tenant confusion matrix
+bench/                 swap_time.py, run_matrix.py, economics.py
+scripts/               guardrail + make_report.py
+tests/                 self-test for the measurement tooling
+train/ serve/          later stages, empty
 ```
 
 ## Run the verifier self-test
@@ -66,6 +73,79 @@ bash scripts/check_no_model_imports.sh     # exits nonzero if a model client app
 
 Saved output: `data/logs/guardrail_grep.log`.
 
+## Measurement tooling
+
+The measurement is built before the thing it measures. Every tool below runs
+today, offline, against `tools/mock_openai_server.py` — a stdlib mock of a vLLM
+OpenAI-compatible server with per-request LoRA selection, configurable TTFT and
+inter-token delay, and a configurable extra delay on the first request to each
+adapter that stands in for a cold adapter load. Later the same tools point at the
+real Azure scoring URI by changing `--endpoint`; nothing else changes.
+
+| tool | what it measures |
+| --- | --- |
+| `tools/mock_openai_server.py` | nothing — it is the offline stand-in being measured against |
+| `eval/separation.py` | per-arm confusion matrix: how often base / meridian / vantage output passes each tenant's contract |
+| `bench/swap_time.py` | cold vs warm adapter swap, isolated by controlling request order |
+| `bench/run_matrix.py` | four-arm serving benchmark: arm and metric contract plus a fallback load driver |
+| `bench/economics.py` | GPU memory and cost per tenant per month for N tenants (arithmetic, no network) |
+| `scripts/make_report.py` | renders `reports/iter_NN.md` from raw logs, citing the source file for every number |
+
+Two rules hold across all of them. Nothing under `eval/` or `bench/` imports a
+model-client library; HTTP is `urllib.request` from the stdlib. And every script
+writes raw per-request JSONL first and computes its summary by reading that file
+back off disk, so each summary carries the path of the log it came from.
+
+### Self-test offline
+
+```bash
+python -m pytest tests/test_tooling.py -q   # 8 tests, starts the mock itself
+python tests/test_tooling.py                # same tests, plain runner
+```
+
+The mock returns a fixed valid Meridian plan for model `meridian`, a fixed valid
+Vantage plan for `vantage`, and non-JSON prose for `base`, so the correct
+confusion matrix is known in advance (100/0, 0/100, 0/0) and the harness is wrong
+if it reports anything else. The same trick fixes the cold-swap answer: the mock
+injects a known delay and `swap_time.py` has to recover it.
+
+Saved output: `data/logs/tooling_selftest.log`.
+
+### Synthetic-number warning
+
+`reports/iter_00.md` and every log file ending in `_selftest` were produced
+against the mock server. **No model was called and no adapter exists yet.** Those
+numbers describe the measuring instrument, not the system under test, and
+`iter_00.md` says so on its first line. The adapter size of 0.08 GB in
+`bench/economics.py` is likewise an estimate, not a measurement, until Stage 2;
+re-run with `--adapter-gb <measured>` then.
+
+### Run a tool by hand
+
+```bash
+python tools/mock_openai_server.py --port 8000 --ttft-ms 80 --itl-ms 10 \
+    --cold-first-request-ms 400 &
+
+python eval/separation.py --endpoint http://127.0.0.1:8000 \
+    --api-key-env MULTILORA_API_KEY --goals tests/fixtures/tooling_goals.jsonl
+python bench/swap_time.py --endpoint http://127.0.0.1:8000 --adapter meridian
+python bench/run_matrix.py --endpoint http://127.0.0.1:8000 --requests-per-arm 24
+python bench/economics.py
+python scripts/make_report.py --iter 1 --objective "..."
+```
+
+The bearer key is only ever read from an environment variable named by
+`--api-key-env`; no tool accepts a key as a flag.
+
+### Sealed set
+
+The headline separation number has to come from a goal set fixed before it was
+ever run against. `eval/separation.py --make-sealed-hash FILE` writes
+`eval/SEALED.sha256` once and refuses to overwrite it; `--sealed` then refuses to
+run unless the goals file still matches that hash, and refuses a second sealed
+run unless `--allow-rerun` is given. No sealed set exists yet — it is created at
+Stage 3, against goals held out of training.
+
 ## Finding from Stage 0: schema alone is not enough
 
 `data/fixtures/meridian_crossover.json` passes every Meridian schema check and is still
@@ -94,6 +174,15 @@ Both are tested.
   run on Azure. The az CLI is not installed locally yet.
 - Base model is `nvidia/Llama-3.1-Nemotron-Nano-8B-v1`. The system message
   `detailed thinking off` goes in every training row and every eval call.
+- Serving will be vLLM with `--enable-lora` behind an Azure ML managed endpoint,
+  OpenAI-compatible, bearer key in an `Authorization` header. Adapter selection is
+  per-request via the `model` field: `base`, `meridian`, `vantage`. Every tool takes
+  `--served-names` so those strings can change without a code edit.
+- `bench/swap_time.py` is the only hand-rolled timing tool, and deliberately so: a
+  cold adapter load happens once per adapter per server lifetime, and isolating it
+  needs control over request order that a load generator does not give you.
+  `bench/run_matrix.py` fixes the arms and the metric row but expects to hand the
+  driving to genai-perf or vLLM's `benchmark_serving.py` at Stage 3.
 - `blockers[]` may be empty. The spec is silent on a minimum, so the verifier requires
   the key to be present and to be a list of non-empty strings, and accepts an empty list.
 - Unknown top-level keys are rejected for both tenants. Strictness was chosen over

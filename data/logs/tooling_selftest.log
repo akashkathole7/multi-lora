@@ -1,0 +1,249 @@
+# tooling self-test console output
+# date: 2026-08-24T13:52:12Z
+# python: Python 3.12.3
+# NOTE: every number below is produced against tools/mock_openai_server.py.
+#       No model is called. All values are synthetic by construction.
+
+$ python data/verifier.py --self-test
+regression unknown tenant        acme      ValueError raised      ValueError raised      MATCH 
+-----------------------------------------------------------------------------------------------
+13 cases, 13 match, 0 mismatch
+SELF-TEST: PASS
+
+==== pytest: python -m pytest tests/test_tooling.py -q ====
+........                                                                 [100%]
+8 passed in 11.09s
+
+==== plain runner: python tests/test_tooling.py ====
+selftest: mock server up on http://127.0.0.1:50793 (ttft=80.0ms itl=10.0ms cold=400.0ms)
+
+==============================================================================
+selftest: test_separation_matrix_is_the_known_answer
+==============================================================================
+separation: run selftest
+separation: endpoint http://127.0.0.1:50793/v1/chat/completions
+separation: goals /home/aakash/Videos/multi-lora/tests/fixtures/tooling_goals.jsonl (6 goals)
+separation: arms base->base, meridian->meridian, vantage->vantage
+separation: concurrency 4
+separation: raw log /home/aakash/Videos/multi-lora/eval/logs/separation_raw_selftest.jsonl
+
+SEPARATION MATRIX
+source: /home/aakash/Videos/multi-lora/eval/logs/separation_raw_selftest.jsonl
+arm       passes Meridian rules  passes Vantage rules  n  errors
+----------------------------------------------------------------
+base      0.0% (0/6)             0.0% (0/6)            6  0     
+meridian  100.0% (6/6)           0.0% (0/6)            6  0     
+vantage   0.0% (0/6)             100.0% (6/6)          6  0     
+
+separation: wrote /home/aakash/Videos/multi-lora/eval/logs/separation_matrix_selftest.json
+separation: wall time 1.65s over 18 requests
+separation: --sealed requires /home/aakash/Videos/multi-lora/eval/SEALED.sha256, which does not exist.
+            Seal the goal set first:
+              python eval/separation.py --make-sealed-hash /home/aakash/Videos/multi-lora/tests/fixtures/tooling_goals.jsonl
+selftest: PASS test_separation_matrix_is_the_known_answer
+
+==============================================================================
+selftest: test_separation_sealed_refuses_without_hash_file
+==============================================================================
+selftest: PASS test_separation_sealed_refuses_without_hash_file
+
+==============================================================================
+selftest: test_separation_sealed_roundtrip_and_tamper
+==============================================================================
+separation: sealed /home/aakash/Videos/multi-lora/tests/.tmp/sealed_goals.jsonl
+separation:   sha256 55bc9d706b18287669141a334eca5a1a7e621b42b4ad2ff412dcd86b92f8f028
+separation:   wrote /home/aakash/Videos/multi-lora/tests/.tmp/SEALED.sha256
+separation: /home/aakash/Videos/multi-lora/tests/.tmp/SEALED.sha256 already exists and will not be overwritten.
+            The sealed set is fixed once. Delete it by hand if you really mean to re-seal, and say so in change_log.md.
+separation: run 20260824T135225490Z (SEALED)
+separation: endpoint http://127.0.0.1:50793/v1/chat/completions
+separation: goals /home/aakash/Videos/multi-lora/tests/.tmp/sealed_goals.jsonl (6 goals)
+separation: arms base->base, meridian->meridian, vantage->vantage
+separation: concurrency 4
+separation: raw log /home/aakash/Videos/multi-lora/tests/.tmp/sealed_out/separation_raw_sealed_20260824T135225490Z.jsonl
+
+SEPARATION MATRIX
+source: /home/aakash/Videos/multi-lora/tests/.tmp/sealed_out/separation_raw_sealed_20260824T135225490Z.jsonl
+arm       passes Meridian rules  passes Vantage rules  n  errors
+----------------------------------------------------------------
+base      0.0% (0/6)             0.0% (0/6)            6  0     
+meridian  100.0% (6/6)           0.0% (0/6)            6  0     
+vantage   0.0% (0/6)             100.0% (6/6)          6  0     
+
+separation: wrote /home/aakash/Videos/multi-lora/tests/.tmp/sealed_out/separation_matrix_sealed_20260824T135225490Z.json
+separation: wall time 1.56s over 18 requests
+separation: a sealed run already exists in /home/aakash/Videos/multi-lora/tests/.tmp/sealed_out:
+              separation_matrix_sealed_20260824T135225490Z.json
+            The sealed set is run once. Pass --allow-rerun to do it again on purpose, and record why in change_log.md.
+separation: sealed-set mismatch, refusing to run.
+            goals file : /home/aakash/Videos/multi-lora/tests/.tmp/sealed_goals.jsonl
+            sha256 now : 16d155571cf7756be97b5d8398f9fc39d5fbd095addd280da051feed8b147303
+            sha256 seal: 55bc9d706b18287669141a334eca5a1a7e621b42b4ad2ff412dcd86b92f8f028  (.tmp/sealed_goals.jsonl)
+            The sealed set changed after it was sealed. Either restore the original file or run without --sealed and label the result as unsealed.
+selftest: PASS test_separation_sealed_roundtrip_and_tamper
+
+==============================================================================
+selftest: test_swap_time_recovers_the_injected_cold_penalty
+==============================================================================
+selftest: mock server up on http://127.0.0.1:48969 (ttft=80.0ms itl=10.0ms cold=400.0ms)
+swap_time: run selftest
+swap_time: endpoint http://127.0.0.1:48969/v1/chat/completions
+swap_time: adapter meridian  baseline base  n_warm 8
+swap_time: raw log /home/aakash/Videos/multi-lora/bench/logs/swap_time_raw_selftest.jsonl
+
+swap_time: ASSUMPTION The cold sample is valid ONLY if the adapter had never been requested since the server started. This tool cannot verify that from the client side. Restart the server before the run, or treat the cold number as warm.
+
+
+SWAP TIME
+source: /home/aakash/Videos/multi-lora/bench/logs/swap_time_raw_selftest.jsonl
+  baseline base           ttft p50 0.0815s   p95 0.0819s   n=8
+  adapter  meridian       ttft p50 0.0816s   p95 0.0821s   n=8
+  adapter  meridian       ttft cold 0.4815s                  n=1
+  cold_swap_estimate  = cold - adapter_p50    = 0.3999s
+  warm_swap_estimate  = adapter_p50 - base_p50 = 0.0001s
+
+swap_time: wrote /home/aakash/Videos/multi-lora/bench/logs/swap_time_summary_selftest.json
+swap_time: wall time 5.83s over 17 requests, 0 errors
+selftest: PASS test_swap_time_recovers_the_injected_cold_penalty
+
+==============================================================================
+selftest: test_run_matrix_populates_every_metric_field
+==============================================================================
+run_matrix: run selftest
+run_matrix: endpoint http://127.0.0.1:50793/v1/chat/completions
+run_matrix: arms base-only, two-lora-interleaved
+run_matrix: 6 requests/arm at concurrency 2
+run_matrix: served names {"base": "base", "meridian": "meridian", "vantage": "vantage"}
+run_matrix: raw log /home/aakash/Videos/multi-lora/bench/logs/matrix_raw_selftest.jsonl
+run_matrix: driver = stdlib fallback (see docstring: genai-perf / benchmark_serving.py are the preferred generators)
+run_matrix: --- arm base-only ---
+run_matrix: --- arm two-lora-interleaved ---
+
+BENCH MATRIX
+source: /home/aakash/Videos/multi-lora/bench/logs/matrix_raw_selftest.jsonl
+                 arm  n  err  ttft_p50_s  ttft_p95_s  itl_p50_s  itl_p95_s  e2e_p50_s  e2e_p95_s  tok/s_agg   req/s  vs_base_%
+------------------------------------------------------------------------------------------------------------------------------
+           base-only  6    0      0.0818      0.0823     0.0103     0.0104     0.3198     0.3212   150.3710  6.2650     0.0000
+two-lora-interleaved  6    0      0.0821      0.0827     0.0104     0.0105     0.3227     0.3232   148.8890  6.2040     0.9180
+
+run_matrix: wrote /home/aakash/Videos/multi-lora/bench/logs/matrix_summary_selftest.json
+run_matrix: total wall time 1.93s
+economics: NOTE adapter size 0.08 GB is an ESTIMATE, not a measurement. Re-run with --adapter-gb <measured> after Stage 2.
+selftest: PASS test_run_matrix_populates_every_metric_field
+
+==============================================================================
+selftest: test_economics_n20_row
+==============================================================================
+# Multi-tenant serving economics (run selftest)
+
+Arithmetic only. No measurement, no network call. Produced by `bench/economics.py`; every number below is a function of the inputs in the next table and nothing else.
+
+## Inputs
+
+| input | value | provenance |
+| --- | --- | --- |
+| base model weights | 16.00 GB | 8B params at bf16; replace with the measured checkpoint size at Stage 2 |
+| LoRA adapter | 0.0800 GB | **ESTIMATE** - rank-16 LoRA on 8B across 7 target modules. NOT MEASURED. Re-run with `--adapter-gb <measured>` at Stage 2. |
+| GPU SKU price | $3.673/hr | Azure pricing page, accessed 2026-08-24; verify at Stage 4 |
+| INR per USD | 87.00 | approximate; verify at Stage 4 |
+| endpoint hours per month | 730 | `--hours-month` |
+| endpoint cost per month | $2,681.29 | 3.673 x 730 |
+
+## GPU memory for N tenants
+
+Column A is N separately fine-tuned models. Column B is one base model plus N adapters. Weights only: KV cache, activations and CUDA graphs are on top of both columns and are the same for both.
+
+| N tenants | A: N full fine-tunes (GB) | B: base + N adapters (GB) | GB saved | savings ratio A/B |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 16.00 | 16.08 | -0.08 | 1.00x |
+| 2 | 32.00 | 16.16 | 15.84 | 1.98x |
+| 3 | 48.00 | 16.24 | 31.76 | 2.96x |
+| 4 | 64.00 | 16.32 | 47.68 | 3.92x |
+| 5 | 80.00 | 16.40 | 63.60 | 4.88x |
+| 6 | 96.00 | 16.48 | 79.52 | 5.83x |
+| 7 | 112.00 | 16.56 | 95.44 | 6.76x |
+| 8 | 128.00 | 16.64 | 111.36 | 7.69x |
+| 9 | 144.00 | 16.72 | 127.28 | 8.61x |
+| 10 | 160.00 | 16.80 | 143.20 | 9.52x |
+| 11 | 176.00 | 16.88 | 159.12 | 10.43x |
+| 12 | 192.00 | 16.96 | 175.04 | 11.32x |
+| 13 | 208.00 | 17.04 | 190.96 | 12.21x |
+| 14 | 224.00 | 17.12 | 206.88 | 13.08x |
+| 15 | 240.00 | 17.20 | 222.80 | 13.95x |
+| 16 | 256.00 | 17.28 | 238.72 | 14.81x |
+| 17 | 272.00 | 17.36 | 254.64 | 15.67x |
+| 18 | 288.00 | 17.44 | 270.56 | 16.51x |
+| 19 | 304.00 | 17.52 | 286.48 | 17.35x |
+| 20 | 320.00 | 17.60 | 302.40 | 18.18x |
+
+## Cost per tenant per month
+
+Dedicated: each tenant runs its own endpoint on its own GPU. Shared: one endpoint serves all N, cost split evenly. The ratio between the two columns is exactly N by construction - the table is here to put an absolute figure on it, not to discover a relationship.
+
+| N tenants | dedicated USD/tenant/mo | shared USD/tenant/mo | dedicated INR/tenant/mo | shared INR/tenant/mo |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 2,681.29 | 2,681.29 | 233,272 | 233,272 |
+| 2 | 2,681.29 | 1,340.64 | 233,272 | 116,636 |
+| 3 | 2,681.29 | 893.76 | 233,272 | 77,757 |
+| 4 | 2,681.29 | 670.32 | 233,272 | 58,318 |
+| 5 | 2,681.29 | 536.26 | 233,272 | 46,654 |
+| 6 | 2,681.29 | 446.88 | 233,272 | 38,879 |
+| 7 | 2,681.29 | 383.04 | 233,272 | 33,325 |
+| 8 | 2,681.29 | 335.16 | 233,272 | 29,159 |
+| 9 | 2,681.29 | 297.92 | 233,272 | 25,919 |
+| 10 | 2,681.29 | 268.13 | 233,272 | 23,327 |
+| 11 | 2,681.29 | 243.75 | 233,272 | 21,207 |
+| 12 | 2,681.29 | 223.44 | 233,272 | 19,439 |
+| 13 | 2,681.29 | 206.25 | 233,272 | 17,944 |
+| 14 | 2,681.29 | 191.52 | 233,272 | 16,662 |
+| 15 | 2,681.29 | 178.75 | 233,272 | 15,551 |
+| 16 | 2,681.29 | 167.58 | 233,272 | 14,580 |
+| 17 | 2,681.29 | 157.72 | 233,272 | 13,722 |
+| 18 | 2,681.29 | 148.96 | 233,272 | 12,960 |
+| 19 | 2,681.29 | 141.12 | 233,272 | 12,277 |
+| 20 | 2,681.29 | 134.06 | 233,272 | 11,664 |
+
+## Not included
+
+- One-off fine-tuning cost per tenant. Favours column B; not counted.
+- Whether one GPU has the throughput headroom for N tenants at the target latency. Favours the dedicated column; `bench/run_matrix.py` measures it.
+- Storage, egress, and idle time outside the stated hours per month.
+
+economics: wrote /home/aakash/Videos/multi-lora/bench/logs/economics_selftest.md
+selftest: PASS test_economics_n20_row
+
+==============================================================================
+selftest: test_make_report_iter_00_cites_its_sources
+==============================================================================
+make_report: 8 input file(s), given with --logs
+make_report:   eval/logs/separation_matrix_selftest.json  (separation_matrix)
+make_report:   eval/logs/separation_raw_selftest.jsonl  (separation_raw)
+make_report:   bench/logs/swap_time_summary_selftest.json  (swap_summary)
+make_report:   bench/logs/swap_time_raw_selftest.jsonl  (swap_raw)
+make_report:   bench/logs/matrix_summary_selftest.json  (bench_matrix_summary)
+make_report:   bench/logs/matrix_raw_selftest.jsonl  (bench_matrix_raw)
+make_report:   bench/logs/economics_selftest.md  (economics)
+make_report:   data/generated/dryrun/filter_summary.json  (filter_summary)
+make_report: wrote /home/aakash/Videos/multi-lora/reports/iter_00.md
+selftest: report written to /home/aakash/Videos/multi-lora/reports/iter_00.md
+selftest: PASS test_make_report_iter_00_cites_its_sources
+
+==============================================================================
+selftest: test_make_report_says_not_measured_when_a_log_is_absent
+==============================================================================
+make_report: 1 input file(s), given with --logs
+make_report:   bench/logs/economics_selftest.md  (economics)
+make_report: wrote /home/aakash/Videos/multi-lora/tests/.tmp/reports/iter_99.md
+selftest: PASS test_make_report_says_not_measured_when_a_log_is_absent
+
+------------------------------------------------------------------------------
+selftest: 8/8 passed
+selftest: PASS
+
+==== --help smoke ====
+OK   --help  tools/mock_openai_server.py
+OK   --help  eval/separation.py
+OK   --help  bench/swap_time.py
+OK   --help  bench/run_matrix.py
+OK   --help  bench/economics.py
+OK   --help  scripts/make_report.py
