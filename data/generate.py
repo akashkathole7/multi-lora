@@ -38,11 +38,9 @@ DEFAULT_MODEL = "claude-sonnet-5"  # CHECK: model id
 DEFAULT_OUT_DIR = ROOT / "data" / "generated"
 
 MAX_TOKENS = 2000
-TEMPERATURE = 1.0
-# CHECK: the bundled claude-api skill states that sampling parameters
-# (temperature/top_p/top_k) are rejected with a 400 on claude-sonnet-5 and the
-# rest of the current model family. TEMPERATURE is kept here because Stage 0
-# specifies it; confirm against the live API before the first Stage 1 run.
+# Sampling parameters (temperature/top_p/top_k) are rejected with a 400 by the
+# current Claude 5 model family, so no temperature is sent; pass --temperature
+# only for older models that still accept it.
 
 SYSTEM_TRAINING_MESSAGE = "detailed thinking off"
 
@@ -306,14 +304,17 @@ def stage_outputs(args) -> int:
     rows = []
     for goal_row in goals:
         for tenant in TENANTS:
+            request_kwargs = {}
+            if args.temperature is not None:
+                request_kwargs["temperature"] = args.temperature
             response = client.messages.create(
                 model=args.model,
                 max_tokens=MAX_TOKENS,
-                temperature=TEMPERATURE,
                 system=GENERATOR_SYSTEM_PROMPT,
                 messages=[
                     {"role": "user", "content": build_prompt(tenant, goal_row["goal"])}
                 ],
+                **request_kwargs,
             )
             text = "".join(
                 block.text for block in response.content if block.type == "text"
@@ -492,6 +493,10 @@ def main(argv=None) -> int:
     parser.add_argument("--n-goals", type=int, default=50, help="goals stage: how many goals")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="outputs stage: model id")
     parser.add_argument("--seed", type=int, default=0, help="goals stage: random seed")
+    parser.add_argument(
+        "--temperature", type=float, default=None,
+        help="outputs stage: sampling temperature; omit for Claude 5 models, which reject it",
+    )
     parser.add_argument(
         "--out-dir", default=str(DEFAULT_OUT_DIR), help="directory for stage outputs"
     )

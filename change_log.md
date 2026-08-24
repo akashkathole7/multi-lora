@@ -49,4 +49,31 @@ naming the missing key. Stage 1 is blocked on that key.
 bundled claude-api reference states that sampling parameters are rejected with a 400 on
 `claude-sonnet-5` and the rest of the current model family. This is flagged with a
 `# CHECK:` comment at the constant and needs one live call to confirm before a full
+generation run. Resolved by entry 2.
+
+## Entry 2 — generate.py: stop sending temperature by default
+
+**Date:** 2026-08-24
+
+**What.** Removed the hardcoded `temperature=1.0` from the `outputs` stage API call.
+Temperature is now sent only when `--temperature` is passed explicitly; the default
+request carries no sampling parameters. Closes the `# CHECK:` from entry 1.
+
+**Why.** The current claude-api reference states the Claude 5 family rejects explicit
+sampling parameters (`temperature`/`top_p`/`top_k`) with a 400. The default generator is
+`claude-sonnet-5`, so the previous default would have failed every call in the first real
 generation run.
+
+**Problem it solves.** Stage 1 would have opened with 100% API errors and zero data.
+
+**Expected impact.** None on outputs (1.0 was the API default anyway); removes a
+guaranteed 400 against Claude 5 models. Older models that accept temperature can still
+get it via the new flag.
+
+**Measured impact.** `--help` exits 0; `filter` stage re-run on the dry-run fixtures
+reproduces 17 kept / 3 rejected with identical reject reasons. No live `outputs` call yet
+(still blocked on `ANTHROPIC_API_KEY`), so the 400-avoidance itself is confirmed only
+against the API reference, not a live response.
+
+**Evidence.** `data/generate.py` (diff in this commit); claude-api reference note in
+entry 1.
