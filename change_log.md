@@ -812,3 +812,40 @@ Session billing: deployment created 11:13Z.
 `serve/azure/logs/deployment_logs.txt` (GPUMEM phases),
 `serve/azure/logs/smoke_*.json`, `bench/logs/matrix_summary_endpoint_session1.json`,
 `bench/logs/matrix_raw_endpoint_session1.jsonl`, `reports/iter_03.md`.
+
+## Entry 15 — Swap time measured, twice: warm ≈ 0 confirmed, no runtime cold path exists
+
+**Date:** 2026-08-25
+
+**What.** Restarted deployment `blue` (env-var nonce update, ~25 min rolling
+reprovision) to obtain a container no client had ever touched, then ran
+`bench/swap_time.py` twice — meridian first (the container's first-ever
+adapter request), then vantage (still untouched after the meridian run).
+20 warm requests per distribution, 0 errors across 82 requests.
+
+**Why.** Objective #3, the headline claim. The smoke test had already warmed
+both adapters on the previous container, which would have silently invalidated
+the cold sample — the restart is what makes the first-request measurement mean
+something.
+
+**Findings.**
+- **Warm swap ≈ 0, measured twice:** adapter p50 minus base p50 = **-48 ms**
+  (meridian) and **+4 ms** (vantage). Switching tenants between requests is a
+  pointer change; the deviation is inside network jitter on the public URI
+  (baseline p95-p50 spread ~290 ms).
+- **There is no runtime cold path on this serving design.** Meridian's
+  first-ever request was *faster* than its own warm p50 (0.976s vs 1.232s);
+  vantage's was +100 ms, inside its p95 spread. Cause: vLLM loads adapters
+  named in `--lora-modules` during server startup, so every registered tenant
+  is GPU-resident before the first request arrives. The Blob->GPU load cost is
+  real but is paid once, inside the ~2.5-minute container start
+  (`deployment_logs.txt` phases), not by any request.
+- A per-request cold number would require dynamic adapter loading
+  (`VLLM_ALLOW_RUNTIME_LORA_UPDATING` + load/unload API). Deliberately not
+  measured: it is a different serving mode from the one deployed, and the
+  static mode's answer — "tenants are warm from the moment the server is up" —
+  is the stronger operational property. Stated in RESULTS as a limit.
+
+**Evidence.** `bench/logs/swap_time_summary_20260825T122412363Z.json` +
+`..._122801312Z.json` and their raw JSONL, `data/logs/swap_meridian_endpoint.log`,
+`data/logs/swap_vantage_endpoint.log`.

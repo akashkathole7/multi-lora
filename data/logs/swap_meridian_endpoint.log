@@ -1,0 +1,59 @@
+swap_time: run 20260825T122412363Z
+swap_time: endpoint https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions
+swap_time: adapter meridian  baseline base  n_warm 20
+swap_time: raw log bench/logs/swap_time_raw_20260825T122412363Z.jsonl
+
+swap_time: ASSUMPTION The cold sample is valid ONLY if the adapter had never been requested since the server started. This tool cannot verify that from the client side. Restart the server before the run, or treat the cold number as warm.
+
+swap_time: [  1/41] baseline_warm base         ttft    1.2519s  e2e 4.1199s
+swap_time: [  2/41] baseline_warm base         ttft    1.2251s  e2e 4.1885s
+swap_time: [  3/41] baseline_warm base         ttft    1.2281s  e2e 4.0307s
+swap_time: [  4/41] baseline_warm base         ttft    1.3988s  e2e 4.2300s
+swap_time: [  5/41] baseline_warm base         ttft    1.3666s  e2e 4.1925s
+swap_time: [  6/41] baseline_warm base         ttft    1.3093s  e2e 4.4035s
+swap_time: [  7/41] baseline_warm base         ttft    2.2978s  e2e 5.2790s
+swap_time: [  8/41] baseline_warm base         ttft    1.2162s  e2e 4.0805s
+swap_time: [  9/41] baseline_warm base         ttft    1.3354s  e2e 4.1135s
+swap_time: [ 10/41] baseline_warm base         ttft    1.5152s  e2e 4.2312s
+swap_time: [ 11/41] baseline_warm base         ttft    1.0734s  e2e 3.9393s
+swap_time: [ 12/41] baseline_warm base         ttft    1.3291s  e2e 4.1982s
+swap_time: [ 13/41] baseline_warm base         ttft    1.3319s  e2e 4.1987s
+swap_time: [ 14/41] baseline_warm base         ttft    1.1265s  e2e 3.9932s
+swap_time: [ 15/41] baseline_warm base         ttft    1.5342s  e2e 4.4029s
+swap_time: [ 16/41] baseline_warm base         ttft    1.1336s  e2e 3.9943s
+swap_time: [ 17/41] baseline_warm base         ttft    1.3308s  e2e 3.4787s
+swap_time: [ 18/41] baseline_warm base         ttft    1.2340s  e2e 4.0964s
+swap_time: [ 19/41] baseline_warm base         ttft    1.2368s  e2e 4.0282s
+swap_time: [ 20/41] baseline_warm base         ttft    1.1982s  e2e 4.0632s
+swap_time: [ 21/41] adapter_cold  meridian     ttft    0.9762s  e2e 4.5042s
+swap_time: [ 22/41] adapter_warm  meridian     ttft    1.2324s  e2e 4.6687s
+swap_time: [ 23/41] adapter_warm  meridian     ttft    1.1728s  e2e 4.6523s
+swap_time: [ 24/41] adapter_warm  meridian     ttft    1.2323s  e2e 4.7112s
+swap_time: [ 25/41] adapter_warm  meridian     ttft    1.2288s  e2e 4.6545s
+swap_time: [ 26/41] adapter_warm  meridian     ttft    1.2875s  e2e 4.8635s
+swap_time: [ 27/41] adapter_warm  meridian     ttft    1.3392s  e2e 4.8138s
+swap_time: [ 28/41] adapter_warm  meridian     ttft    1.1763s  e2e 4.6302s
+swap_time: [ 29/41] adapter_warm  meridian     ttft    1.2074s  e2e 4.6891s
+swap_time: [ 30/41] adapter_warm  meridian     ttft    1.3264s  e2e 4.7075s
+swap_time: [ 31/41] adapter_warm  meridian     ttft    1.6375s  e2e 4.7103s
+swap_time: [ 32/41] adapter_warm  meridian     ttft    1.2302s  e2e 4.6509s
+swap_time: [ 33/41] adapter_warm  meridian     ttft    1.2891s  e2e 4.7206s
+swap_time: [ 34/41] adapter_warm  meridian     ttft    1.1754s  e2e 4.5934s
+swap_time: [ 35/41] adapter_warm  meridian     ttft    1.3932s  e2e 4.8041s
+swap_time: [ 36/41] adapter_warm  meridian     ttft    1.3148s  e2e 4.7821s
+swap_time: [ 37/41] adapter_warm  meridian     ttft    1.1250s  e2e 4.6077s
+swap_time: [ 38/41] adapter_warm  meridian     ttft    1.3311s  e2e 4.7101s
+swap_time: [ 39/41] adapter_warm  meridian     ttft    1.1274s  e2e 4.5355s
+swap_time: [ 40/41] adapter_warm  meridian     ttft    1.1993s  e2e 4.9070s
+swap_time: [ 41/41] adapter_warm  meridian     ttft    1.3078s  e2e 4.7111s
+
+SWAP TIME
+source: bench/logs/swap_time_raw_20260825T122412363Z.jsonl
+  baseline base           ttft p50 1.2806s   p95 1.5724s   n=20
+  adapter  meridian       ttft p50 1.2323s   p95 1.4054s   n=20
+  adapter  meridian       ttft cold 0.9762s                  n=1
+  cold_swap_estimate  = cold - adapter_p50    = -0.2561s
+  warm_swap_estimate  = adapter_p50 - base_p50 = -0.0483s
+
+swap_time: wrote bench/logs/swap_time_summary_20260825T122412363Z.json
+swap_time: wall time 181.90s over 41 requests, 0 errors

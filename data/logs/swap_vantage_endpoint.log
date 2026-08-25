@@ -1,0 +1,59 @@
+swap_time: run 20260825T122801312Z
+swap_time: endpoint https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions
+swap_time: adapter vantage  baseline base  n_warm 20
+swap_time: raw log bench/logs/swap_time_raw_20260825T122801312Z.jsonl
+
+swap_time: ASSUMPTION The cold sample is valid ONLY if the adapter had never been requested since the server started. This tool cannot verify that from the client side. Restart the server before the run, or treat the cold number as warm.
+
+swap_time: [  1/41] baseline_warm base         ttft    1.2609s  e2e 4.1273s
+swap_time: [  2/41] baseline_warm base         ttft    1.2296s  e2e 4.0964s
+swap_time: [  3/41] baseline_warm base         ttft    1.2312s  e2e 4.0949s
+swap_time: [  4/41] baseline_warm base         ttft    1.2275s  e2e 4.0398s
+swap_time: [  5/41] baseline_warm base         ttft    1.1823s  e2e 3.9798s
+swap_time: [  6/41] baseline_warm base         ttft    1.0949s  e2e 3.9602s
+swap_time: [  7/41] baseline_warm base         ttft    1.4339s  e2e 4.0949s
+swap_time: [  8/41] baseline_warm base         ttft    1.2315s  e2e 4.0976s
+swap_time: [  9/41] baseline_warm base         ttft    1.2291s  e2e 3.6854s
+swap_time: [ 10/41] baseline_warm base         ttft    1.2324s  e2e 4.0972s
+swap_time: [ 11/41] baseline_warm base         ttft    1.3314s  e2e 4.1977s
+swap_time: [ 12/41] baseline_warm base         ttft    1.3294s  e2e 4.1950s
+swap_time: [ 13/41] baseline_warm base         ttft    1.3344s  e2e 4.1999s
+swap_time: [ 14/41] baseline_warm base         ttft    1.2303s  e2e 4.0951s
+swap_time: [ 15/41] baseline_warm base         ttft    1.1295s  e2e 3.9949s
+swap_time: [ 16/41] baseline_warm base         ttft    1.1271s  e2e 3.9931s
+swap_time: [ 17/41] baseline_warm base         ttft    1.3465s  e2e 4.0968s
+swap_time: [ 18/41] baseline_warm base         ttft    1.2286s  e2e 3.8889s
+swap_time: [ 19/41] baseline_warm base         ttft    1.2298s  e2e 4.0956s
+swap_time: [ 20/41] baseline_warm base         ttft    1.3471s  e2e 4.1994s
+swap_time: [ 21/41] adapter_cold  vantage      ttft    1.3353s  e2e 4.8128s
+swap_time: [ 22/41] adapter_warm  vantage      ttft    1.3320s  e2e 4.7312s
+swap_time: [ 23/41] adapter_warm  vantage      ttft    1.3119s  e2e 4.6105s
+swap_time: [ 24/41] adapter_warm  vantage      ttft    1.3091s  e2e 4.7188s
+swap_time: [ 25/41] adapter_warm  vantage      ttft    1.1950s  e2e 4.6777s
+swap_time: [ 26/41] adapter_warm  vantage      ttft    1.2290s  e2e 4.6281s
+swap_time: [ 27/41] adapter_warm  vantage      ttft    1.1074s  e2e 4.5019s
+swap_time: [ 28/41] adapter_warm  vantage      ttft    1.3150s  e2e 4.7956s
+swap_time: [ 29/41] adapter_warm  vantage      ttft    1.2290s  e2e 4.6506s
+swap_time: [ 30/41] adapter_warm  vantage      ttft    1.2888s  e2e 4.7696s
+swap_time: [ 31/41] adapter_warm  vantage      ttft    1.2296s  e2e 4.7101s
+swap_time: [ 32/41] adapter_warm  vantage      ttft    1.2293s  e2e 4.6997s
+swap_time: [ 33/41] adapter_warm  vantage      ttft    1.2400s  e2e 4.6297s
+swap_time: [ 34/41] adapter_warm  vantage      ttft    1.2226s  e2e 4.6988s
+swap_time: [ 35/41] adapter_warm  vantage      ttft    1.1276s  e2e 4.5204s
+swap_time: [ 36/41] adapter_warm  vantage      ttft    1.6222s  e2e 5.1049s
+swap_time: [ 37/41] adapter_warm  vantage      ttft    1.2290s  e2e 4.6433s
+swap_time: [ 38/41] adapter_warm  vantage      ttft    1.1921s  e2e 4.5980s
+swap_time: [ 39/41] adapter_warm  vantage      ttft    1.4081s  e2e 4.8879s
+swap_time: [ 40/41] adapter_warm  vantage      ttft    1.3326s  e2e 4.8137s
+swap_time: [ 41/41] adapter_warm  vantage      ttft    1.3408s  e2e 4.7379s
+
+SWAP TIME
+source: bench/logs/swap_time_raw_20260825T122801312Z.jsonl
+  baseline base           ttft p50 1.2307s   p95 1.3514s   n=20
+  adapter  vantage        ttft p50 1.2348s   p95 1.4188s   n=20
+  adapter  vantage        ttft cold 1.3353s                  n=1
+  cold_swap_estimate  = cold - adapter_p50    = 0.1005s
+  warm_swap_estimate  = adapter_p50 - base_p50 = 0.0041s
+
+swap_time: wrote bench/logs/swap_time_summary_20260825T122801312Z.json
+swap_time: wall time 180.18s over 41 requests, 0 errors
