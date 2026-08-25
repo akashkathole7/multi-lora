@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# End-to-end: zero -> Azure ML managed online endpoint -> scoring URI -> smoke
-# test -> GPU memory numbers. And, just as importantly, back to zero.
+# End-to-end: registered adapters -> Azure ML managed online endpoint -> scoring
+# URI -> smoke test -> GPU memory numbers. And, just as importantly, back to
+# zero.
 #
 #   ./serve/azure/deploy.sh                 # full deploy (asks for confirmation)
 #   ./serve/azure/deploy.sh --hours 6       # same, with a 6-hour cost projection
@@ -22,14 +23,23 @@
 # process, and this script nags about it accordingly.
 #
 # ---------------------------------------------------------------------------
-# az CLI commands used, verified 2026-08-24
+# WHERE THE ADAPTERS COME FROM
+# ---------------------------------------------------------------------------
+# A registered Azure ML model asset, `adapters-both` - a folder holding
+# meridian/ and vantage/ HF PEFT adapter directories, written by the training
+# jobs and never round-tripped through a laptop.
+#
+# ---------------------------------------------------------------------------
+# az CLI commands used, verified 2026-08-24, re-checked 2026-08-25
 # ---------------------------------------------------------------------------
 #   az account set --subscription
 #       https://learn.microsoft.com/en-us/cli/azure/account
 #   az group create --name --location
 #       https://learn.microsoft.com/en-us/cli/azure/group
-#   az ml workspace create --name --resource-group --location
+#   az ml workspace show / create --name --resource-group --location
 #       https://learn.microsoft.com/en-us/cli/azure/ml/workspace
+#   az ml model show --name --version    (read-only pre-flight)
+#       https://learn.microsoft.com/en-us/cli/azure/ml/model
 #   az ml environment create --file
 #       https://learn.microsoft.com/en-us/cli/azure/ml/environment
 #   az ml online-endpoint create --file
@@ -41,9 +51,13 @@
 #   az ml online-deployment get-logs --lines --container
 #   az ml online-deployment delete --yes
 #       https://learn.microsoft.com/en-us/cli/azure/ml/online-deployment
-#   az storage account create / az storage container create /
-#   az storage blob upload-batch
-#       https://learn.microsoft.com/en-us/cli/azure/storage/blob
+#
+# NO storage-account or blob-upload command appears in this script any more. An
+# earlier draft created a storage account, uploaded the adapters from the local
+# disk and registered a model asset pointing at the blob copy. The registered
+# `adapters-both` asset replaces all three steps: the artifact the endpoint
+# serves is the artifact the training job wrote, there is no SAS token to mint
+# or leak, and the version number is citable in a report.
 #
 # `--all-traffic` is on `online-deployment create` and not in endpoint.yaml
 # because the endpoint schema states you can't set `traffic` at creation time.
@@ -59,26 +73,24 @@ set -uo pipefail
 AZ_BIN="${AZ_BIN:-$HOME/.venvs/azcli/bin/az}"
 
 # Parameterised on purpose. Never let a subscription id be the thing that is
-# hard to change.
+# hard to change. These defaults are the LIVE workspace this project trains in.
 SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-97540688-009b-4a05-bea2-5cdea4cfe222}"
-LOCATION="${LOCATION:-eastus}"
-RESOURCE_GROUP="${RESOURCE_GROUP:-multilora-rg}"
-WORKSPACE="${WORKSPACE:-multilora-ws}"
+LOCATION="${LOCATION:-southcentralus}"
+RESOURCE_GROUP="${RESOURCE_GROUP:-rg-multilora}"
+WORKSPACE="${WORKSPACE:-mlw-multilora}"
 
 ENDPOINT_NAME="${ENDPOINT_NAME:-multilora-ep}"
 DEPLOYMENT_NAME="${DEPLOYMENT_NAME:-blue}"
 ENVIRONMENT_NAME="${ENVIRONMENT_NAME:-multilora-vllm}"
 ENVIRONMENT_VERSION="${ENVIRONMENT_VERSION:-}"   # empty = let AzureML autogenerate
 
-ADAPTER_MODEL_NAME="${ADAPTER_MODEL_NAME:-multilora-adapters}"
-ADAPTER_MODEL_VERSION="${ADAPTER_MODEL_VERSION:-1}"
+# The registered model asset holding both tenants' adapters. `@latest` is the
+# documented "most recently created version" reference form:
+# https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-core-syntax
+ADAPTER_MODEL_NAME="${ADAPTER_MODEL_NAME:-adapters-both}"
+ADAPTER_MODEL_REF="${ADAPTER_MODEL_REF:-azureml:${ADAPTER_MODEL_NAME}@latest}"
 
 INSTANCE_TYPE="${INSTANCE_TYPE:-Standard_NC24ads_A100_v4}"
-
-# Storage for the adapters. Account names are global and lowercase-alphanumeric
-# only, so a suffix is appended from the subscription id to avoid collisions.
-STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-multilora$(printf '%s' "${SUBSCRIPTION_ID}" | tr -cd 'a-z0-9' | cut -c1-10)}"
-STORAGE_CONTAINER="${STORAGE_CONTAINER:-adapters}"
 
 # Cost model. Both numbers are estimates and are labelled as such everywhere
 # they are printed.
@@ -91,17 +103,6 @@ CONFIRM_PHRASE="yes-bill"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HERE="${REPO_ROOT}/serve/azure"
 VENV_PY="${VENV_PY:-${REPO_ROOT}/.venv/bin/python}"
-
-# Staged adapter folder: one subdirectory per tenant, HF PEFT layout.
-ADAPTER_STAGE="${ADAPTER_STAGE:-${REPO_ROOT}/train/out/adapters}"
-# What gets registered as the model asset. Defaults to the local staged folder.
-# Override with an azureml://datastores/... URI to register the blob copy
-# instead.
-# CHECK: the exact azureml:// datastore URI form accepted by an inline model
-# CHECK: `path` in a deployment YAML was not confirmed against the docs for a
-# CHECK: NON-workspace-default storage account. Registering from the local
-# CHECK: folder is the verified path and is the default here.
-ADAPTER_SOURCE_PATH="${ADAPTER_SOURCE_PATH:-${ADAPTER_STAGE}}"
 
 TENANTS="${TENANTS:-meridian vantage}"
 
@@ -141,9 +142,7 @@ render() {
         -e "s|__DEPLOYMENT_NAME__|${DEPLOYMENT_NAME}|g" \
         -e "s|__ENVIRONMENT_NAME__|${ENVIRONMENT_NAME}|g" \
         -e "s|__ENVIRONMENT_VERSION__|${ENVIRONMENT_VERSION}|g" \
-        -e "s|__ADAPTER_MODEL_NAME__|${ADAPTER_MODEL_NAME}|g" \
-        -e "s|__ADAPTER_MODEL_VERSION__|${ADAPTER_MODEL_VERSION}|g" \
-        -e "s|__ADAPTER_SOURCE_PATH__|${ADAPTER_SOURCE_PATH}|g" \
+        -e "s|__ADAPTER_MODEL_REF__|${ADAPTER_MODEL_REF}|g" \
         -e "s|__HF_TOKEN__|${HF_TOKEN:-}|g" \
         "${src}" > "${dst}" || die "could not render ${src}"
     log "rendered ${src} -> ${dst}"
@@ -212,39 +211,40 @@ confirm_billing() {
 # steps
 # ---------------------------------------------------------------------------
 
-stage_adapters() {
-    step "stage adapters"
-    mkdir -p "${ADAPTER_STAGE}"
-    local missing=0 t src
-    for t in ${TENANTS}; do
-        src="${REPO_ROOT}/train/out/${t}_hf"
-        if [ -f "${ADAPTER_STAGE}/${t}/adapter_config.json" ]; then
-            log "adapter ${t}: already staged at ${ADAPTER_STAGE}/${t}"
-            continue
-        fi
-        if [ -f "${src}/adapter_config.json" ]; then
-            mkdir -p "${ADAPTER_STAGE}/${t}"
-            cp -r "${src}/." "${ADAPTER_STAGE}/${t}/" || die "could not copy ${src}"
-            log "adapter ${t}: staged from ${src}"
-        else
-            log "adapter ${t}: MISSING - no adapter_config.json at ${src} or ${ADAPTER_STAGE}/${t}"
-            missing=$((missing + 1))
-        fi
-    done
-    if [ "${missing}" -gt 0 ]; then
-        die "${missing} adapter(s) missing. Train them first (see train/README.md). Nothing billable was created."
-    fi
-    du -sh "${ADAPTER_STAGE}"/* 2>/dev/null | while read -r line; do log "staged: ${line}"; done
-}
-
 set_subscription() {
     step "az account set"
     az account set --subscription "${SUBSCRIPTION_ID}" || die "could not select subscription ${SUBSCRIPTION_ID}"
     az account show --query "{name:name, id:id}" -o tsv || true
 }
 
+check_model_asset() {
+    # Read-only, free, and deliberately BEFORE the billing confirmation: a
+    # missing model asset should cost nothing, not be discovered 30 minutes into
+    # a running A100.
+    step "check the adapter model asset exists (free, read-only)"
+    local version
+    # shellcheck disable=SC2046
+    version="$(az ml model show --name "${ADAPTER_MODEL_NAME}" --label latest $(ws_args) --query version -o tsv 2>/dev/null)"
+    if [ -z "${version}" ]; then
+        rule
+        echo "  Model asset '${ADAPTER_MODEL_NAME}' was not found in ${WORKSPACE}."
+        echo ""
+        echo "  It must be a custom_model folder laid out as:"
+        echo "      <asset>/meridian/adapter_config.json + adapter_model.safetensors"
+        echo "      <asset>/vantage/adapter_config.json  + adapter_model.safetensors"
+        echo ""
+        echo "  Register it with:"
+        printf '      %s ml model create --name %s --type custom_model \\\n' "${AZ_BIN}" "${ADAPTER_MODEL_NAME}"
+        printf '          --path <folder> %s\n' "$(ws_args)"
+        rule
+        die "no ${ADAPTER_MODEL_NAME} model asset. Nothing billable was created."
+    fi
+    log "model asset ${ADAPTER_MODEL_NAME}:${version} found; deployment will reference ${ADAPTER_MODEL_REF}"
+    log "the adapters ship as a registered asset - no local staging, no blob upload, no SAS"
+}
+
 create_group_and_workspace() {
-    step "resource group + workspace (idempotent)"
+    step "resource group + workspace (idempotent - both already exist)"
     if az group show --name "${RESOURCE_GROUP}" >/dev/null 2>&1; then
         log "resource group ${RESOURCE_GROUP} already exists"
     else
@@ -265,36 +265,22 @@ create_group_and_workspace() {
     fi
 }
 
-create_storage_and_upload() {
-    step "storage container + adapter upload"
-    if az storage account show --name "${STORAGE_ACCOUNT}" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
-        log "storage account ${STORAGE_ACCOUNT} already exists"
-    else
-        az storage account create --name "${STORAGE_ACCOUNT}" --resource-group "${RESOURCE_GROUP}" \
-            --location "${LOCATION}" --sku Standard_LRS -o none \
-            || die "could not create storage account ${STORAGE_ACCOUNT}"
-        log "created storage account ${STORAGE_ACCOUNT}"
-    fi
-
-    az storage container create --name "${STORAGE_CONTAINER}" \
-        --account-name "${STORAGE_ACCOUNT}" --auth-mode login -o none 2>/dev/null \
-        || log "container create returned nonzero (usually: it already exists)"
-
-    log "uploading ${ADAPTER_STAGE} -> ${STORAGE_ACCOUNT}/${STORAGE_CONTAINER}"
-    az storage blob upload-batch --account-name "${STORAGE_ACCOUNT}" \
-        --destination "${STORAGE_CONTAINER}" --source "${ADAPTER_STAGE}" \
-        --auth-mode login --overwrite -o none \
-        || log "WARNING blob upload-batch failed. The deployment registers the model"
-    log "adapters are in blob storage (the system of record). The deployment"
-    log "  registers them as a model asset, which is the documented way to get"
-    log "  files into a managed online deployment's container."
-}
-
 register_environment() {
     step "register environment (BYOC image build)"
     render "${HERE}/environment.yaml" "${RENDER_DIR}/environment.yaml"
+    # environment.yaml's build.path is `.`, resolved relative to the YAML file -
+    # which is the rendered copy. Put exactly the two files the image needs next
+    # to it, so the ACR build context is those two files and nothing else. In
+    # particular it must not be serve/azure/, which contains logs/endpoint.env.
+    cp "${HERE}/Dockerfile" "${RENDER_DIR}/Dockerfile" || die "could not stage Dockerfile"
+    cp "${HERE}/start_server.sh" "${RENDER_DIR}/start_server.sh" || die "could not stage start_server.sh"
+    chmod +x "${RENDER_DIR}/start_server.sh"
+    log "build context ${RENDER_DIR}: Dockerfile + start_server.sh only"
     log "Azure ML builds the Dockerfile in the workspace container registry."
     log "  First build pulls the vLLM base image and takes several minutes."
+    log "  Why a build at all: the deployment schema has no command/entrypoint"
+    log "  override, and vllm serve takes its flags on ARGV - see the comment"
+    log "  block in serve/azure/environment.yaml."
     # shellcheck disable=SC2046
     ENVIRONMENT_VERSION="$(az ml environment create --file "${RENDER_DIR}/environment.yaml" \
         $(ws_args) --query version -o tsv 2>/dev/null)"
@@ -322,9 +308,14 @@ create_endpoint() {
 create_deployment() {
     step "create deployment  <-- THIS IS THE BILLABLE ONE"
     render "${HERE}/deployment.yaml" "${RENDER_DIR}/deployment.yaml"
-    log "creating ${DEPLOYMENT_NAME} on ${INSTANCE_TYPE}."
+    log "creating ${DEPLOYMENT_NAME} on ${INSTANCE_TYPE}, mounting ${ADAPTER_MODEL_REF}."
     log "  Expect 20-40 minutes: image build, node allocation, then ~16 GB of"
     log "  base weights downloaded inside the container. Billing starts now."
+    # shellcheck disable=SC2046
+    if az ml online-deployment show --name "${DEPLOYMENT_NAME}" --endpoint-name "${ENDPOINT_NAME}" $(ws_args) >/dev/null 2>&1; then
+        log "deployment ${DEPLOYMENT_NAME} already exists - IT IS ALREADY BILLING. Reusing it."
+        return 0
+    fi
     # shellcheck disable=SC2046
     az ml online-deployment create --file "${RENDER_DIR}/deployment.yaml" $(ws_args) --all-traffic \
         || die "deployment create failed. Run '$0 teardown' - a failed deployment can still hold a node."
@@ -441,13 +432,22 @@ with open(dest, "w", encoding="utf-8") as fh:
         || { printf '  %-9s HTTP 200  FAIL (response had no message content)\n' "${model}"; return 1; }
 
     if [ "${tenant}" = "none" ]; then
-        printf '  %-9s HTTP 200  (base arm - checked against BOTH contracts)\n' "${model}"
+        # The base arm has no tenant contract to satisfy, so its smoke verdict is
+        # the weakest useful one: did it return any text at all.
+        local chars
+        chars="$(wc -c < "${out}" 2>/dev/null | tr -d ' ')"
+        if [ "${chars:-0}" -lt 1 ]; then
+            printf '  %-9s HTTP 200  FAIL (returned an empty message)\n' "${model}"
+            return 1
+        fi
+        printf '  %-9s HTTP 200  PASS (returns text, %s chars)\n' "${model}" "${chars}"
+        echo "    context, NOT the smoke verdict - base is the control arm, and"
+        echo "    the correct result below is FAIL under both tenant contracts:"
         local t
         for t in ${TENANTS}; do
-            printf '    as %-9s ' "${t}"
+            printf '      as %-9s ' "${t}"
             "${VENV_PY}" "${REPO_ROOT}/data/verifier.py" --tenant "${t}" "${out}" 2>&1 | head -1
         done
-        echo "    (base is the control: FAIL on both is the CORRECT result here)"
         return 0
     fi
 
@@ -497,6 +497,9 @@ show_gpu_logs() {
 
     if [ -s "${raw}" ]; then
         log "wrote ${raw} ($(wc -l < "${raw}") lines)"
+        echo ""
+        echo "--- where the adapters were found inside the container ---"
+        grep 'start_server: adapter root\|start_server: matched pattern' "${raw}" || echo "(none found)"
         echo ""
         echo "--- GPUMEM phase markers ---"
         grep 'GPUMEM phase=' "${raw}" | grep -v 'phase=periodic' || echo "(none found)"
@@ -577,7 +580,7 @@ teardown() {
     echo ""
     echo "  Still costing a little (rupees per month, not per hour):"
     echo "    - the workspace's storage account, key vault and container registry"
-    printf '    - the adapter storage account %s\n' "${STORAGE_ACCOUNT}"
+    printf '    - the registered model assets (%s and the per-tenant ones)\n' "${ADAPTER_MODEL_NAME}"
     echo "  To remove everything including those:"
     printf '      %s group delete --name %s --yes\n' "${AZ_BIN}" "${RESOURCE_GROUP}"
     echo ""
@@ -593,11 +596,10 @@ teardown() {
 
 deploy_all() {
     require_az
-    stage_adapters          # not billable, and fails early if adapters are missing
-    confirm_billing         # <-- nothing billable happens above this line
-    set_subscription
+    set_subscription         # free
+    check_model_asset        # free, and fails early if adapters-both is missing
+    confirm_billing          # <-- nothing billable happens above this line
     create_group_and_workspace
-    create_storage_and_upload
     register_environment
     create_endpoint
     create_deployment
@@ -613,6 +615,7 @@ deploy_all() {
     rule
     printf '  scoring URI   %s\n' "${SCORING_URI}"
     printf '  chat URL      %s\n' "${CHAT_URL}"
+    printf '  adapters      %s\n' "${ADAPTER_MODEL_REF}"
     printf '  credentials   %s\n' "${LOG_DIR}/endpoint.env"
     echo ""
     echo "  Next:"
@@ -631,7 +634,7 @@ deploy_all() {
 # ---------------------------------------------------------------------------
 
 usage() {
-    sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 SUBCOMMAND="deploy"

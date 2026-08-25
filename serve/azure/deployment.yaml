@@ -1,13 +1,13 @@
 # Azure ML v2 managed online deployment: vLLM + two LoRA adapters on one A100.
 #
-# Schema and every key below verified 2026-08-24 against
+# Schema and every key below verified 2026-08-24, re-checked 2026-08-25 against
 # https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-deployment-managed-online
 # Custom-container specifics verified against
 # https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-custom-container
 #
 # __PLACEHOLDER__ tokens are substituted by deploy.sh into a rendered copy under
 # the scratch directory. They are plain YAML scalars, so this file still parses
-# unrendered, which is what the CI check in data/logs/stack_draft_checks.log does.
+# unrendered, which is what the CI check in data/logs/serve_adapt_checks.log does.
 
 $schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.schema.json
 name: __DEPLOYMENT_NAME__
@@ -18,46 +18,64 @@ endpoint_name: __ENDPOINT_NAME__
 # ---------------------------------------------------------------------------
 # HOW THE ADAPTERS GET INTO THE CONTAINER.
 #
-# The spec for this project said "adapters mounted from Azure Blob Storage".
-# The documented mechanism for a managed online deployment is NOT a raw blob
-# mount - it is a registered MODEL ASSET, whose `path` may itself be a blob/
-# datastore URI. The model-specification doc says model files are "automatically
-# downloaded to the endpoint and mounted" and exposed at AZUREML_MODEL_DIR, and
-# `model_mount_path` is documented as "The path to mount the model in a custom
-# container. Applicable only for custom container deployment scenarios, where
-# environment has inference_config configured." So the blob storage is still the
-# system of record; the model asset is the supported way to project it into the
-# container.
+# A registered MODEL ASSET. Not a blob upload from a laptop.
 #
-# CHECK: no documented way to mount an arbitrary Azure Blob container directly
-# CHECK: into a MANAGED online deployment was found. Datastore/blob mounting is
-# CHECK: documented for jobs, not for online deployments. If a direct mount is
-# CHECK: required (e.g. adapters that change without a redeploy), the verified
-# CHECK: alternative is vLLM's runtime LoRA API - set
-# CHECK: VLLM_ALLOW_RUNTIME_LORA_UPDATING=True and POST /v1/load_lora_adapter
-# CHECK: (https://docs.vllm.ai/en/latest/features/lora.html) - which sidesteps
-# CHECK: the deployment lifecycle entirely. Not used here: it widens the attack
-# CHECK: surface on a key-auth endpoint for no benefit at two tenants.
+# `adapters-both` is a `custom_model` asset already in the workspace, holding
+# both tenants' HF PEFT adapter directories side by side:
+#     meridian/adapter_config.json + adapter_model.safetensors + tokenizer files
+#     vantage/adapter_config.json  + adapter_model.safetensors + tokenizer files
+# It was produced by the training jobs, which means the artifact that gets served
+# is byte-for-byte the artifact that was trained and evaluated - no laptop round
+# trip, no SAS token to handle or leak, and a version number to cite in a report.
 #
-# `path` below points at a LOCAL folder laid out as:
-#     <path>/meridian/adapter_config.json + adapter_model.safetensors
-#     <path>/vantage/adapter_config.json  + adapter_model.safetensors
-# deploy.sh overrides it with the blob/datastore URI form
-#     azureml://datastores/workspaceblobstore/paths/<prefix>
-# once it has uploaded the adapters, so the blob copy is what is registered.
-model:
-  name: __ADAPTER_MODEL_NAME__
-  version: __ADAPTER_MODEL_VERSION__
-  # `custom_model` is the right type for opaque files that AzureML must not try
-  # to interpret. https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-model
-  type: custom_model
-  path: __ADAPTER_SOURCE_PATH__
-  description: LoRA adapters for tenants meridian and vantage, rank 16.
+# The earlier draft of this stack uploaded the adapters to a standalone blob
+# container and then registered a model asset pointing at it. That extra hop is
+# gone: the deployment references the registered asset directly.
+#
+# `azureml:<asset_name>@latest` is the documented reference form for "the most
+# recently created version of this asset":
+# https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-core-syntax
+# ("Referencing an Azure Machine Learning asset"). It is what train/azureml/
+# job_devmatrix.yaml already uses live against this same workspace.
+model: __ADAPTER_MODEL_REF__   # rendered default: azureml:adapters-both@latest
 
-# The model lands at <model_mount_path>/<model-name>/<version>/. start_server.sh
-# does not assume that layout - it resolves the adapter root by searching
-# AZUREML_MODEL_DIR, then MODEL_MOUNT_PATH, then this path, for a directory
-# containing the first adapter name, and logs which one it found.
+# WHERE THE MOUNT LANDS - and why start_server.sh does not assume.
+#
+# The custom-container how-to states the default: "a model registered with the
+# name my-model and version 1 is located on the following path inside your
+# deployed container: /var/azureml-app/azureml-models/my-model/1", and with
+# model_mount_path set the same model lands at
+# "<model_mount_path>/<model-name>/<version>".
+#
+# What is NOT pinned down for a folder-shaped custom_model is whether the
+# registered folder's OWN name survives inside that directory. The docs' two
+# worked examples disagree in appearance: the TF Serving BYOC sample registers
+# `path: ./half_plus_two` and then reads
+# $MODEL_BASE_PATH/half_plus_two - folder name preserved - while the model
+# specification concept page says AZUREML_MODEL_DIR "points to the folder
+# containing the root of the model artifacts".
+# https://learn.microsoft.com/en-us/azure/machine-learning/concept-online-deployment-model-specification
+#
+# It matters concretely here. `adapters-both:1` was registered from a training
+# job output folder literally named `adapters`
+# (.../ExperimentRun/dcid.silver_rainbow_tjrh9xkt1j/outputs/adapters, read off
+# `az ml model show` 2026-08-25), so the adapters may appear at EITHER
+#     $AZUREML_MODEL_DIR/adapters/meridian/adapter_config.json
+# or
+#     $AZUREML_MODEL_DIR/meridian/adapter_config.json
+# and start_server.sh handles both by globbing */meridian/adapter_config.json in
+# a fixed list of candidate roots, logging the exact directory it resolved and
+# the pattern that matched, and exiting nonzero if neither shape is present.
+# Guessing one layout here would fail 30 minutes into a billing A100.
+#
+# CHECK: which of the two shapes above is real - i.e. whether a folder-shaped
+# CHECK: custom_model keeps its own top-level folder name inside the mount - is
+# CHECK: not settled by the docs and cannot be settled offline. Resolved by
+# CHECK: reading the "adapter root"/"matched pattern" lines out of the first
+# CHECK: deployment's container log; record the answer in change_log.md.
+# CHECK: Related and also undocumented: whether AZUREML_MODEL_DIR follows a
+# CHECK: custom model_mount_path or stays under /var/azureml-app/azureml-models.
+# CHECK: Both are in start_server.sh's candidate list, so either answer works.
 model_mount_path: /mnt/adapters
 
 # ---------------------------------------------------------------------------
@@ -65,8 +83,19 @@ model_mount_path: /mnt/adapters
 # ---------------------------------------------------------------------------
 # Registered separately by deploy.sh from serve/azure/environment.yaml, which is
 # where the Dockerfile build context and the inference_config routes live.
-# Referencing a registered environment rather than inlining it is what the
-# schema page calls the production best practice.
+#
+# WHY A BUILT IMAGE AND NOT `image: vllm/vllm-openai:v0.27.1` DIRECTLY.
+# The deployment schema (URL at the top of this file) has no `command`, `args`
+# or entrypoint key - the attribute table lists none, and the custom-container
+# how-to's "Base image" section says a stock image is configured through
+# ENVIRONMENT VARIABLES that its own ENTRYPOINT script reads. The upstream vLLM
+# image's entrypoint is `vllm serve`, which takes the model and every flag on
+# ARGV; there is no env var for `--enable-lora` or `--lora-modules`. Referencing
+# the public image directly therefore cannot serve LoRA adapters at all, and
+# separately gives no place to run the nvidia-smi sampling that objective #4's
+# GPU-memory numbers come from. One thin layer over the public image is the
+# cost of both. (train/azureml/job_devmatrix.yaml CAN use the public image
+# directly, because JOB yaml does have a `command:`. Deployments do not.)
 environment: azureml:__ENVIRONMENT_NAME__:__ENVIRONMENT_VERSION__
 
 # code_configuration is deliberately absent. The schema says it "is optional for
@@ -80,6 +109,11 @@ environment: azureml:__ENVIRONMENT_NAME__:__ENVIRONMENT_VERSION__
 # online endpoint SKU list:
 # https://learn.microsoft.com/en-us/azure/machine-learning/reference-managed-online-endpoints-vm-sku-list
 # The `Standard_` prefix is how the SKU list spells it.
+#
+# QUOTA, checked live 2026-08-25 in southcentralus: standardNCADSA100v4Family
+# 32 cores, TotalDedicatedCores 52. Managed online deployments reserve an extra
+# 20% for upgrades, so this deployment charges 24 x 1.2 = 28.8 cores against
+# both limits. It fits, with one instance and no room for a second.
 #
 # COST. This is the single most expensive line in the repository. One instance
 # bills continuously from the moment the deployment is created until it is
@@ -98,6 +132,10 @@ environment_variables:
   SERVED_BASE_NAME: base
   ADAPTER_NAMES: meridian,vantage
   VLLM_PORT: "8000"
+  # Mirrors model_mount_path above. start_server.sh searches this as one of its
+  # candidate roots, because whether AZUREML_MODEL_DIR follows a custom
+  # model_mount_path is not stated in the docs.
+  ADAPTER_MOUNT_ROOT: /mnt/adapters
   # Must be >= the `dim` in train/config_*.yaml. Both are 16.
   MAX_LORA_RANK: "16"
   # "Max number of LoRAs in a single batch" (vLLM engine args, default 1).
@@ -106,6 +144,10 @@ environment_variables:
   MAX_LORAS: "4"
   # "Maximum number of LoRAs to store in CPU memory. Must be >= than max_loras."
   MAX_CPU_LORAS: "8"
+  # 4096 is the value the devmatrix job ran with live on this exact image and
+  # base model (train/azureml/job_devmatrix.yaml, job sad_line_6gslz8gljq), and
+  # it is comfortably above the longest prompt+plan this project generates.
+  MAX_MODEL_LEN: "4096"
   # vLLM's own default is 0.92. Trimmed slightly: the container also holds the
   # HF download cache and the sampler, and an OOM at load costs a redeploy.
   GPU_MEMORY_UTILIZATION: "0.90"
@@ -116,7 +158,9 @@ environment_variables:
   # in reports/ are captured.
   MEM_SAMPLE_SECONDS: "30"
   # Give the base-weight download and load a generous budget before declaring
-  # the server dead. ~16 GB over the wire plus load time.
+  # the server dead. ~16 GB over the wire plus load time. The base model
+  # nvidia/Llama-3.1-Nemotron-Nano-8B-v1 downloads anonymously from the HF hub -
+  # verified live by the devmatrix job, which carried no HF token.
   READY_TIMEOUT_SECONDS: "1800"
   # 1 = fire one request per adapter at startup so real users never pay the cold
   # load. Set to 0 before running bench/swap_time.py, which needs a cold adapter

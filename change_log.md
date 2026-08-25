@@ -588,3 +588,156 @@ startup logging, not from this number).
 **Evidence.** `eval/logs/separation_matrix_20260825T103026225Z.json`,
 `eval/logs/separation_raw_20260825T103026225Z.jsonl`,
 `eval/logs/devmatrix_ab_std_log.txt`, `reports/iter_02.md`.
+
+## Entry 12 — Serving stack rebased on the registered adapter asset
+
+**Date:** 2026-08-25
+
+**What.** Rewrote `serve/azure/` around the artifact that actually exists.
+`deployment.yaml` now mounts the registered model asset
+`azureml:adapters-both@latest` (custom_model, `meridian/` + `vantage/` HF PEFT
+dirs) instead of a folder uploaded to a standalone blob container.
+`start_server.sh` discovers the mount instead of assuming it, and hard-exits if
+it cannot. `deploy.sh` lost adapter staging and the whole storage-account /
+`blob upload-batch` path, gained a free pre-flight `az ml model show`, and its
+defaults now point at the live workspace (`mlw-multilora` / `rg-multilora` /
+southcentralus, not the invented `multilora-ws` / `multilora-rg` / eastus).
+`environment.yaml` and the `Dockerfile` keep the BYOC build but now say plainly
+why one is unavoidable. `scripts/check_flag_continuation.py` makes the entry-10
+lesson executable.
+
+**Why.** The Stage 2 draft (entry 4) was written before anything existed, so it
+invented a plausible pipeline: stage adapters locally → create a storage account
+→ upload → register a model asset pointing at the blob copy. Three of those four
+steps are now dead. Both adapters are registered assets (`adapter-meridian:1`,
+`adapter-vantage:1`), and a combined `adapters-both:1` was registered from a
+training-job output. The draft would have created a redundant storage account
+and re-uploaded from a laptop the same bytes the cluster had already written.
+
+**Problem it solves.** Three, in descending order of how expensive they are.
+
+First, serving the wrong bytes. Round-tripping adapters through a workstation
+means the artifact that gets evaluated is a copy of the artifact that was
+trained, related to it only by a `cp`. Referencing `adapters-both@latest`
+removes the copy: the deployment mounts the job output itself, with a version
+number that a report can cite. It also removes the SAS token nobody wanted to
+own, and — a side effect noticed while wiring it — the ACR build context, which
+used to be `serve/azure/` and would have swept `logs/endpoint.env`, the file
+holding the endpoint key, into a container image. The rendered build context is
+now exactly `Dockerfile` + `start_server.sh`.
+
+Second, guessing the mount layout. Azure's docs pin down the mount *directory*
+(`/var/azureml-app/azureml-models/<name>/<version>`, or
+`<model_mount_path>/<name>/<version>`) but not whether a folder-shaped
+`custom_model` keeps its own top-level folder name inside it — the TF Serving
+BYOC sample reads as though it does, the model-specification page as though it
+does not. `adapters-both:1` was registered from a job output folder literally
+named `adapters`, so the adapters land at either
+`$AZUREML_MODEL_DIR/adapters/meridian` or `$AZUREML_MODEL_DIR/meridian` and
+nothing in the documentation settles which. `start_server.sh` therefore searches
+four candidate roots, tries the direct path, then `*/meridian`, then
+`*/*/meridian`, then a bounded `find`, logs the directory it resolved AND the
+pattern that matched, and if none match dumps a recursive listing and exits
+nonzero. It no longer falls back to a base-only server, which would have passed
+the health probe, taken 100% of traffic and 404'd every tenant request while
+billing.
+
+Third, a question that had gone unasked: does this need a custom image at all?
+Answer, verified rather than assumed: yes, and for a reason worth writing down.
+The managed online deployment schema has no `command`, `args` or entrypoint key,
+and the custom-container how-to describes configuring a stock image only through
+environment variables its own ENTRYPOINT reads. `vllm/vllm-openai`'s entrypoint
+is `vllm serve`, which takes the model positionally and every flag on ARGV;
+there is no env var for `--enable-lora` or `--lora-modules`. A bare
+`image: vllm/vllm-openai:v0.27.1` reference cannot serve LoRA adapters at all,
+and separately leaves nowhere to run the `nvidia-smi` sampling objective #4
+depends on. `train/azureml/job_devmatrix.yaml` does use that image with no build
+— because a command **job** has a `command:` key. Same image, different lever.
+Both files now carry that paragraph so the question is not reopened on a billing
+node.
+
+**Expected impact.** `deploy.sh` runs end to end against the real workspace:
+subscription → model-asset pre-flight → cost guardrail → idempotent
+group/workspace → environment → endpoint → deployment → URI + key → route probe
+→ smoke test on all three served names → GPU memory lines → teardown reminder.
+Everything before the guardrail is free, and a missing `adapters-both` now costs
+nothing instead of being discovered 30 minutes into a running A100.
+
+**Measured impact.** Offline checks only — nothing was deployed and no A100 was
+started by this entry. `data/logs/serve_adapt_checks.log` has all of it:
+4 `.sh` files pass `bash -n`; 8 `.yaml` files parse under PyYAML; 21 schema and
+consistency spot-checks pass on the serve YAMLs (including "the deployment has
+no `command`/`args`/`entrypoint` key" and "the deployment has no
+`inference_config`", both of which are the load-bearing facts above); the
+entry-10 guard passes over 10 files and is itself negative-tested — it is shown
+failing on a hand-made folded-scalar bug, because a guard that only ever passes
+proves nothing. The adapter discovery was **executed**, not just read: three
+fake mount layouts (flat, one level of nesting, two) each resolve correctly and
+log the matching pattern, and an empty mount exits 1 with a FATAL line.
+`print_cost()` and `confirm_billing()` are byte-identical to the previous
+version; `teardown()` differs by exactly one informational line, which named a
+storage account that no longer exists.
+
+Test suite: **2 failed, 23 passed, 1 error in 11.69s** — and those failures are
+**pre-existing and unrelated**, confirmed by stashing every file in this commit
+and re-running against a clean HEAD for an identical result.
+`tests/test_tooling.py:256` and its teardown at `:201` assert that
+`eval/SEALED.sha256` does not exist; they were written in commit `e266b46`
+(entry 3) when that was true, and commit `92e0f3a` (entry 8, "sealed set
+hashed") legitimately created the file. The tests encode a precondition the repo
+outgrew. Left alone rather than fixed inside a serving commit — it is a real
+bug, in the tooling tests, and it deserves its own entry.
+
+**Doc verification, 2026-08-25.** Confirmed: `azureml:<asset_name>@latest` is
+the documented "latest version of an asset" reference form
+([core YAML syntax](https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-core-syntax));
+`inference_config` is a key on the **environment** schema and does not exist on
+the deployment schema, and the environment may be registered-and-referenced or
+inlined in the deployment YAML (the how-to's own CLI sample inlines it);
+`model_mount_path` is "the path to mount the model in a custom container …
+applicable only for custom container deployment scenarios, where environment has
+`inference_config` configured"; the default mount is
+`/var/azureml-app/azureml-models/<name>/<version>`; the deployment schema
+attribute table contains no `command`, `args` or entrypoint key
+([managed online deployment schema](https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-deployment-managed-online),
+[custom container how-to](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-custom-container),
+[model specification](https://learn.microsoft.com/en-us/azure/machine-learning/concept-online-deployment-model-specification)).
+Verified live against the workspace rather than the docs:
+`adapters-both:1` exists as a `custom_model` whose source folder is named
+`adapters`; `az ml model show --label latest` resolves; southcentralus quota is
+`standardNCADSA100v4Family` 32 / `TotalDedicatedCores` 52, so one
+`Standard_NC24ads_A100_v4` (24 × 1.2 = 28.8 reserved cores) fits and a second
+does not.
+
+**Still unverified (# CHECK list for the deploy session).**
+
+1. **Mount shape.** `$AZUREML_MODEL_DIR/adapters/meridian` vs
+   `$AZUREML_MODEL_DIR/meridian`, and whether `AZUREML_MODEL_DIR` follows a
+   custom `model_mount_path` at all. Marked at `serve/azure/deployment.yaml:71`.
+   Resolved by reading the `adapter root` / `matched pattern` lines out of the
+   first container log. Both shapes work, so this costs a log line, not a
+   redeploy.
+2. **The routing question, still open from entry 4 and deliberately preserved.**
+   Azure's docs do not state what literal path a BYOC container receives when a
+   client POSTs to a scoring URI ending in `/score`, nor whether a client may
+   address `/v1/chat/completions` on it directly. Marked at
+   `serve/azure/environment.yaml:79`. `deploy.sh probe_routes` tries both against
+   the live endpoint and prints which answered. It matters beyond tidiness:
+   `eval/separation.py` and `bench/*.py` build their URL by appending
+   `/v1/chat/completions`, so they cannot construct a bare `/score` and would
+   need a local rewrite proxy if `/score` is the only route. Record the answer.
+3. **Total startup budget.** The probes allow ~35 minutes; whether Azure ML
+   imposes its own provisioning timeout is undocumented. Marked at
+   `serve/azure/deployment.yaml:210`.
+4. **The ACR build itself.** Never run. Time and cost unknown; the first deploy
+   pulls the ~10 GB vLLM base into the workspace registry.
+
+**Evidence.** `data/logs/serve_adapt_checks.log` (every check above with its
+output, plus the live `az ml model show` for `adapters-both:1`),
+`serve/azure/README.md` (rewritten command order, file table and the
+blob-vs-asset section), `scripts/check_flag_continuation.py` (the entry-10
+lesson, now executable and negative-tested).
+
+**Not done in this stage.** Nothing was deployed. No endpoint, no deployment, no
+ACR build, no GPU. Every claim about how the mount behaves, what the scoring URI
+routes to, and how much GPU memory an adapter costs is still a claim.

@@ -324,10 +324,9 @@ Doc research date for all of it: **2026-08-24**.
 
 | file:line | item |
 | --- | --- |
-| `serve/azure/environment.yaml:36` | **The big one.** What literal path the container receives when a client POSTs to the public scoring URI (which ends in `/score`), and whether a client may address `/v1/chat/completions` on it directly. Neither is stated in the Azure docs. `deploy.sh` probes both against the live endpoint and prints which answered. |
-| `serve/azure/deployment.yaml:32` | No documented way to mount a raw Azure Blob container into a *managed* online deployment; datastore mounting is documented for jobs. Registered model asset is used instead. Verified alternative for hot-swapping adapters: vLLM's `/v1/load_lora_adapter`. |
-| `serve/azure/deployment.yaml:166` | No documented **total** startup budget for a managed online deployment — only per-probe settings. Azure ML may impose its own provisioning timeout, which would kill a container mid-download of the 16 GB base model. |
-| `serve/azure/deploy.sh:100` | Exact `azureml://datastores/...` URI form accepted by an inline model `path` for a non-default storage account. Registering from a local folder is the verified path and is the default. |
+| `serve/azure/environment.yaml:79` | **The big one.** What literal path the container receives when a client POSTs to the public scoring URI (which ends in `/score`), and whether a client may address `/v1/chat/completions` on it directly. Neither is stated in the Azure docs. `deploy.sh` probes both against the live endpoint and prints which answered. |
+| `serve/azure/deployment.yaml:71` | Whether a folder-shaped `custom_model` keeps its own top-level folder name inside the mount — i.e. whether the adapters land at `$AZUREML_MODEL_DIR/adapters/meridian` or `$AZUREML_MODEL_DIR/meridian`. The docs' two worked examples read both ways. `start_server.sh` globs for both, logs which matched, and exits nonzero if neither. Related: whether `AZUREML_MODEL_DIR` follows a custom `model_mount_path`. |
+| `serve/azure/deployment.yaml:210` | No documented **total** startup budget for a managed online deployment — only per-probe settings. Azure ML may impose its own provisioning timeout, which would kill a container mid-download of the 16 GB base model. |
 
 ### DGX Spark
 

@@ -1,13 +1,16 @@
 # Azure ML v2 environment: the BYOC (bring-your-own-container) serving image.
 #
-# Schema and every key verified 2026-08-24 against
+# Schema and every key verified 2026-08-24, re-checked 2026-08-25 against
 # https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-environment
 #
-#   image / build   "One of `image` or `build` is required."  We use `build`,
-#                   because the Dockerfile in this directory is what adds
-#                   start_server.sh on top of the upstream vLLM image. Azure ML
-#                   builds it in the workspace ACR.
+#   image / build   "One of `image` or `build` is required."
 #   build.path      "Local path to the directory to use as the build context."
+#                   Resolved relative to the YAML file, and deploy.sh registers
+#                   a RENDERED copy of this file under serve/azure/.rendered/,
+#                   into which it also copies Dockerfile and start_server.sh. So
+#                   `.` is a two-file build context by construction - notably it
+#                   does not sweep up serve/azure/logs/endpoint.env, which holds
+#                   the endpoint key.
 #   build.dockerfile_path
 #                   "Relative path to the Dockerfile within the build context."
 #                   Default is `Dockerfile`; stated anyway so it is explicit.
@@ -22,6 +25,46 @@
 #                   Exactly these two sub-keys per route. Verified in the
 #                   inference_config attribute table on the environment schema
 #                   page.
+#
+# WHERE THE ROUTES MUST BE DECLARED - answered 2026-08-25.
+#   In the ENVIRONMENT, not the deployment. `inference_config` is a key on the
+#   environment schema; the managed online DEPLOYMENT schema's attribute table
+#   has no `inference_config` key at all
+#   (https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-deployment-managed-online).
+#   That environment may be a registered asset referenced as
+#   `azureml:<name>:<version>` - which is what deployment.yaml does and what the
+#   deployment schema calls "a best practice for production scenarios" - or an
+#   inline `environment:` block in the deployment YAML. The custom-container
+#   how-to's own CLI sample inlines it, image and inference_config together.
+#
+# WHY THIS ENVIRONMENT BUILDS AN IMAGE INSTEAD OF NAMING vllm/vllm-openai:v0.27.1
+#   The cheapest possible answer would be `image: vllm/vllm-openai:v0.27.1` here
+#   with no `build:` - no ACR build minutes, no image push, a deployment that
+#   starts as soon as the node is allocated. It does not work for this project,
+#   for two independent reasons:
+#
+#   1. There is no way to pass vLLM its flags. The managed online deployment
+#      schema has no `command`, `args` or entrypoint key - the attribute table
+#      lists none - and the custom-container how-to's "Base image" section
+#      describes configuring a stock image only through ENVIRONMENT VARIABLES
+#      that the image's own ENTRYPOINT script reads (its TF Serving example sets
+#      MODEL_BASE_PATH and MODEL_NAME that way). The upstream vLLM image's
+#      entrypoint is `vllm serve`, which takes the model positionally and every
+#      flag on ARGV. There is no environment variable for `--enable-lora` or
+#      `--lora-modules`, so a direct image reference cannot serve LoRA adapters
+#      at all.
+#   2. Objective #4 needs GPU memory sampled from inside the container, before
+#      and after the base load and around each adapter's first request. That
+#      needs a process of ours in the container. start_server.sh is that
+#      process, and the only way in is a layer of our own.
+#
+#   Note the asymmetry with training: train/azureml/job_devmatrix.yaml DOES use
+#   `image: vllm/vllm-openai:v0.27.1` with no build, because a command JOB has a
+#   `command:` key. Online deployments do not. Same image, different lever.
+#
+#   The cost of the build is ACR minutes and ~5-15 min on the first deploy only:
+#   the environment is registered once and referenced by version, so redeploying
+#   reuses the built image.
 #
 # ROUTES.
 #   liveness  / readiness -> vLLM's GET /health on port 8000. /health is a
@@ -40,7 +83,7 @@
 # CHECK: are consistent with the docs. deploy.sh resolves this at run time by
 # CHECK: probing both URLs against the live endpoint and printing which one
 # CHECK: answered; feed that URL to eval/ and bench/ as --endpoint. See the
-# CHECK: "Routing" section of serve/azure/README.md.
+# CHECK: "Routing" section of serve/azure/README.md. Still open as of entry 12.
 $schema: https://azuremlschemas.azureedge.net/latest/environment.schema.json
 name: __ENVIRONMENT_NAME__
 description: vLLM OpenAI server with multi-LoRA enabled, for the two-tenant endpoint.

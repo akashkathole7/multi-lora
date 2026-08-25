@@ -11,8 +11,19 @@
 #
 # The upstream image sets ENTRYPOINT ["vllm", "serve"] (verified in
 # https://raw.githubusercontent.com/vllm-project/vllm/main/docker/Dockerfile,
-# stage `vllm-openai`). We replace it, because we need to log GPU memory before
-# and after the model load and Azure ML gives us no other hook to do that.
+# stage `vllm-openai`). We replace it, for two reasons:
+#
+#   1. Flags. A managed online deployment YAML has no `command`/`args` key, so
+#      the only way to hand `vllm serve` its `--enable-lora` and
+#      `--lora-modules name=path` arguments is for the entrypoint itself to
+#      build them. See the long comment in environment.yaml.
+#   2. Measurement. GPU memory has to be sampled before the base load, after it,
+#      and around each adapter's first request. Azure ML gives no hook for that;
+#      a process of ours inside the container is the hook.
+#
+# This same image tag runs the training-side eval WITHOUT a custom layer
+# (train/azureml/job_devmatrix.yaml), because a command job does have a
+# `command:`. The layer below exists for the deployment case only.
 ARG VLLM_IMAGE_TAG=v0.27.1
 FROM vllm/vllm-openai:${VLLM_IMAGE_TAG}
 
@@ -34,10 +45,12 @@ RUN chmod +x /opt/multilora/start_server.sh
 ENV BASE_MODEL="nvidia/Llama-3.1-Nemotron-Nano-8B-v1" \
     SERVED_BASE_NAME="base" \
     ADAPTER_NAMES="meridian,vantage" \
+    ADAPTER_MOUNT_ROOT="/mnt/adapters" \
     VLLM_PORT="8000" \
     MAX_LORA_RANK="16" \
     MAX_LORAS="4" \
     MAX_CPU_LORAS="8" \
+    MAX_MODEL_LEN="4096" \
     GPU_MEMORY_UTILIZATION="0.90" \
     MEM_SAMPLE_SECONDS="30" \
     HF_HOME="/mnt/hfcache"

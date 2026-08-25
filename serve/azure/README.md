@@ -10,22 +10,86 @@ Adapter selection is the `model` field on the request: `base`, `meridian`,
 > project's entire ₹10,000 budget. `deploy.sh teardown` is step 2 of a 2-step
 > process, not optional cleanup.
 
+Target workspace: **`mlw-multilora`** / **`rg-multilora`** / **southcentralus** —
+the same workspace the adapters were trained in. Those are the defaults in
+`deploy.sh`; every one is overridable from the environment.
+
 ## Files
 
 ```
-Dockerfile         vLLM base image + start_server.sh
-start_server.sh    entrypoint: GPU memory logging, then vLLM with both adapters
+Dockerfile         vLLM v0.27.1 + start_server.sh  (one thin layer, see below)
+start_server.sh    entrypoint: find the mounted adapters, GPU memory logging,
+                   then vLLM with both adapters
 environment.yaml   az ml environment: build context + inference_config routes
 endpoint.yaml      az ml managed online endpoint (auth_mode: key)
-deployment.yaml    az ml managed online deployment (SKU, probes, env vars)
-deploy.sh          zero -> scoring URI -> smoke test -> teardown
+deployment.yaml    az ml managed online deployment (model asset, SKU, probes,
+                   env vars)
+deploy.sh          model-asset check -> scoring URI -> smoke test -> teardown
 ```
+
+## Where the adapters come from
+
+**A registered Azure ML model asset — `adapters-both` — not a blob upload.**
+
+```
+adapters-both:1   (custom_model)
+├── meridian/     adapter_config.json + adapter_model.safetensors + tokenizer files
+└── vantage/      adapter_config.json + adapter_model.safetensors + tokenizer files
+```
+
+The earlier draft of this directory staged the adapters into a local folder,
+created a storage account, uploaded them with `az storage blob upload-batch`,
+and then registered a model asset pointing at the blob copy. All three steps are
+gone. The asset is written directly by the training jobs, so: **no laptop round
+trip** (the bytes that get served are the bytes that were trained and evaluated,
+never re-uploaded from a workstation), **no SAS token** to mint, rotate or leak,
+and **a version number** — `adapters-both:1` — that a report can cite.
+
+`deployment.yaml` references it as `azureml:adapters-both@latest`, the
+documented "most recently created version" form
+([core YAML syntax](https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-core-syntax)).
+`train/azureml/job_devmatrix.yaml` already uses the same form live against this
+workspace.
+
+### Where it lands inside the container, and why nothing assumes
+
+Azure's docs pin down the mount **directory**: a model registered as `my-model`
+version `1` appears at `/var/azureml-app/azureml-models/my-model/1`, or at
+`<model_mount_path>/<model-name>/<version>` when `model_mount_path` is set
+([custom container how-to](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-custom-container)).
+What they do **not** pin down for a folder-shaped `custom_model` is whether the
+registered folder's own name survives inside that directory — the TF Serving
+sample on that page implies it does, the
+[model specification page](https://learn.microsoft.com/en-us/azure/machine-learning/concept-online-deployment-model-specification)
+implies it may not. `adapters-both:1` was registered from a job output folder
+literally named `adapters`, so this is not academic:
+
+```
+$AZUREML_MODEL_DIR/adapters/meridian/adapter_config.json     # folder name kept
+$AZUREML_MODEL_DIR/meridian/adapter_config.json              # folder name dropped
+```
+
+`start_server.sh` handles **both**. It walks a fixed candidate list —
+`$AZUREML_MODEL_DIR`, then `$ADAPTER_MOUNT_ROOT` (mirrors `model_mount_path`),
+then `/mnt/adapters`, then `/var/azureml-app/azureml-models` — and at each root
+tries `<root>/meridian/adapter_config.json`, then the glob
+`<root>/*/meridian/adapter_config.json`, then one level deeper, then a bounded
+`find`. It logs the directory it resolved and the pattern that matched:
+
+```
+start_server: adapter root    /mnt/adapters/adapters-both/1/adapters
+start_server: matched pattern <root>/*/*/meridian/adapter_config.json
+```
+
+If nothing matches it dumps a recursive listing of `$AZUREML_MODEL_DIR` and
+**exits nonzero**. It does not fall back to a base-only server: that would pass
+the health probe, take 100% of traffic, and 404 every tenant request on a
+billing A100.
 
 ## Command order
 
 ```bash
 export AZ_BIN="$HOME/.venvs/azcli/bin/az"      # default; override if elsewhere
-export SUBSCRIPTION_ID="<your subscription>"    # has a default, parameterised
 
 ./serve/azure/deploy.sh cost            # 1. see the bill before agreeing to it
 ./serve/azure/deploy.sh --hours 3       # 2. the whole thing
@@ -37,26 +101,69 @@ export SUBSCRIPTION_ID="<your subscription>"    # has a default, parameterised
 
 | # | step | time | money |
 | --- | --- | --- | --- |
-| 1 | stage adapters from `train/out/<tenant>_hf/` | seconds | none |
-| 2 | **cost guardrail — type `yes-bill` or nothing happens** | — | none |
-| 3 | `az account set` | seconds | none |
-| 4 | resource group + workspace (idempotent) | 2–5 min first time | pennies/month |
-| 5 | storage account + container + adapter upload | 1–2 min | pennies/month |
-| 6 | register environment (ACR builds the Dockerfile) | 5–15 min first time | ACR build minutes |
-| 7 | create endpoint | 1–3 min | **none** — an endpoint with no deployment does not bill |
-| 8 | **create deployment** | 20–40 min | **billing starts here** |
-| 9 | fetch scoring URI + key | seconds | — |
-| 10 | probe which URL serves chat completions | seconds | — |
-| 11 | smoke test, one completion per served name | ~1 min | — |
-| 12 | print GPU memory lines from `get-logs` | seconds | — |
+| 1 | `az account set` | seconds | none |
+| 2 | `az ml model show adapters-both` — fail early if the asset is missing | seconds | none |
+| 3 | **cost guardrail — type `yes-bill` or nothing happens** | — | none |
+| 4 | resource group + workspace, `show \|\| create` (both already exist) | seconds | pennies/month |
+| 5 | register environment (ACR builds the Dockerfile) | 5–15 min first time | ACR build minutes |
+| 6 | create endpoint | 1–3 min | **none** — an endpoint with no deployment does not bill |
+| 7 | **create deployment**, mounting `azureml:adapters-both@latest` | 20–40 min | **billing starts here** |
+| 8 | fetch scoring URI + key | seconds | — |
+| 9 | probe which URL serves chat completions | seconds | — |
+| 10 | smoke test, one completion per served name | ~1 min | — |
+| 11 | print GPU memory lines from `get-logs` | seconds | — |
+| 12 | print the teardown reminder | — | — |
 
-Everything above step 2 is free, and step 1 fails loudly if the adapters are
-missing — so a missing adapter costs nothing rather than being discovered after
-40 minutes of a billing A100.
+Everything above step 3 is free, and step 2 fails loudly if `adapters-both` is
+not in the workspace — so a missing artifact costs nothing rather than being
+discovered after 40 minutes of a billing A100.
 
-Step 8 is slow because the container downloads ~16 GB of base weights at
+Step 7 is slow because the container downloads ~16 GB of base weights at
 startup. That is why the probes in `deployment.yaml` are set to ~35 minutes of
 startup budget instead of the default ~5.
+
+### The smoke test
+
+One chat completion per served name, verdicts computed **locally**:
+
+| served name | check |
+| --- | --- |
+| `meridian` | `data/verifier.py --tenant meridian` on the response text |
+| `vantage` | `data/verifier.py --tenant vantage` on the response text |
+| `base` | returns text at all — no contract to satisfy |
+
+`base` also gets run through both tenant contracts, printed as **context, not
+the verdict**: it is the control arm, and FAIL on both is the correct result.
+
+A one-request-per-arm smoke test is not the separation measurement. That is
+`eval/separation.py` against the sealed goal set.
+
+## Why a built image instead of `image: vllm/vllm-openai:v0.27.1`
+
+The cheapest deployment would name the public vLLM image directly — no ACR build
+minutes, no push, a faster first deploy. It does not work here, for two
+independent reasons:
+
+1. **No way to pass the flags.** The
+   [managed online deployment schema](https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-deployment-managed-online)
+   has no `command`, `args` or entrypoint key, and the custom-container how-to
+   describes configuring a stock image only through *environment variables its
+   own entrypoint reads*. The vLLM image's entrypoint is `vllm serve`, which
+   takes the model positionally and every flag on ARGV. There is no env var for
+   `--enable-lora` or `--lora-modules`, so a bare image reference cannot serve
+   LoRA adapters at all.
+2. **No place to measure.** The GPU memory numbers come from `nvidia-smi` run
+   inside the container at named phases. That needs a process of ours.
+
+`train/azureml/job_devmatrix.yaml` *does* use the public image with no build —
+because a command **job** has a `command:` key. Deployments do not. Same image,
+different lever.
+
+The routes are declared in **`environment.yaml`**, not the deployment:
+`inference_config` is a key on the environment schema and does not exist on the
+deployment schema. The environment may be registered and referenced by version
+(what this project does — one build, reused by every redeploy) or inlined in the
+deployment YAML; the docs' own CLI sample inlines it.
 
 ## The cost guardrail
 
@@ -69,6 +176,11 @@ The rate ($3.673/hour) is a **hardcoded estimate** from the Azure pricing page
 and is printed marked as such, with the URL to verify it at run time. It has not
 been checked against a real invoice, a region, a currency or any credit.
 
+Quota, checked live 2026-08-25 in southcentralus: `standardNCADSA100v4Family`
+32 cores, `TotalDedicatedCores` 52. A managed online deployment reserves an
+extra 20%, so this one charges 24 × 1.2 = 28.8 cores against both limits. One
+instance fits; a second does not.
+
 ## Teardown, and why it verifies
 
 ```bash
@@ -77,15 +189,17 @@ been checked against a real invoice, a region, a currency or any credit.
 
 Deletes the deployment, then the endpoint, then **lists the endpoints in the
 workspace and checks the name is gone**. A delete command that returned zero is
-not evidence that the resource is gone; a listing is. If the name is still
-there, teardown exits nonzero with a loud block telling you that you are
-probably still being billed and how to force it.
+not evidence that the resource is gone; a listing is (change_log entry 10 is
+what that lesson cost). If the name is still there, teardown exits nonzero with
+a loud block telling you that you are probably still being billed and how to
+force it.
 
-To remove everything including the workspace's storage, key vault and container
-registry:
+Teardown deliberately does **not** touch `adapters-both` or the per-tenant
+adapter assets. They cost pennies a month and they are the artifact. To remove
+everything including the workspace's storage, key vault and container registry:
 
 ```bash
-"$AZ_BIN" group delete --name multilora-rg --yes
+"$AZ_BIN" group delete --name rg-multilora --yes
 ```
 
 ## Routing — the one genuinely unresolved thing
@@ -105,9 +219,9 @@ Rather than guess, `deploy.sh` probes both against the live endpoint and prints
 which one answered:
 
 ```
-probe https://<ep>.eastus.inference.ml.azure.com/score -> HTTP 200
-probe https://<ep>.eastus.inference.ml.azure.com/v1/chat/completions -> HTTP 404
-CHAT COMPLETIONS URL: https://<ep>.eastus.inference.ml.azure.com/score
+probe https://<ep>.southcentralus.inference.ml.azure.com/score -> HTTP 200
+probe https://<ep>.southcentralus.inference.ml.azure.com/v1/chat/completions -> HTTP 404
+CHAT COMPLETIONS URL: https://<ep>.southcentralus.inference.ml.azure.com/score
 ```
 
 The winner is written to `serve/azure/logs/endpoint.env` as
@@ -148,17 +262,23 @@ with `GPUMEM`, timestamped, on stdout. Azure ML captures container stdout, and:
 ```bash
 "$AZ_BIN" ml online-deployment get-logs \
     --name blue --endpoint-name multilora-ep \
-    --resource-group multilora-rg --workspace-name multilora-ws \
+    --resource-group rg-multilora --workspace-name mlw-multilora \
     --container inference-server --lines 5000
 ```
 
 replays it. `./serve/azure/deploy.sh logs` wraps that, saves the full log to
-`serve/azure/logs/deployment_logs.txt`, and greps out the phase markers.
+`serve/azure/logs/deployment_logs.txt`, and greps out the phase markers, the
+adapter sizes on disk, and the resolved adapter root.
 
 **The number that matters** is the delta between
 `before_first_request_<name>` and `after_first_request_<name>`. That is the
 adapter's GPU footprint, and it is what replaces the 0.08 GB estimate in
 `bench/economics.py`.
+
+For scale: the dev-matrix job (change_log entry 11) measured 0 MiB idle →
+75,730 MiB with the server up at vLLM's default 0.92 utilization. That number is
+the *server*, not the adapters; it is why the per-adapter delta has to be
+bracketed rather than inferred.
 
 One interaction to know about: `WARM_ADAPTERS=1` (the default) fires one
 request per adapter at startup so real users never pay the cold load. That also
@@ -177,26 +297,6 @@ The fix is to stop downloading at startup: bake the base weights into the image
 layer to the `Dockerfile`), or register them as a second model asset. Both trade
 a much larger image or a longer registration for a container that starts in
 under a minute. Neither has been tried here.
-
-## Adapters: blob storage vs model asset
-
-`deploy.sh` uploads the adapters to an Azure Blob container in your
-subscription — that is the system of record, and it is the "your data never
-leaves your subscription" story in `ARCHITECTURE.md`.
-
-Getting them *into* the container is a separate question. The documented
-mechanism for a managed online deployment is a registered **model asset**,
-mounted at `model_mount_path` and exposed as `AZUREML_MODEL_DIR`. No documented
-way to mount a raw blob container directly into a managed online deployment was
-found; blob/datastore mounting is documented for jobs, not for online
-deployments. `start_server.sh` does not assume a fixed layout — it searches
-`AZUREML_MODEL_DIR`, then `MODEL_MOUNT_PATH`, then `/mnt/adapters`, for a
-directory containing the first adapter name, and logs which one it found.
-
-If adapters need to change without a redeploy, the verified alternative is
-vLLM's runtime LoRA API (`VLLM_ALLOW_RUNTIME_LORA_UPDATING=True` plus
-`POST /v1/load_lora_adapter`). Not used here: it widens the attack surface on a
-key-auth endpoint for no benefit at two tenants.
 
 ## After it is up
 

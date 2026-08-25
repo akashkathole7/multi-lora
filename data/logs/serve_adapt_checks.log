@@ -1,0 +1,210 @@
+======================================================================
+serve/azure adaptation checks
+blob-upload design -> registered model asset (azureml:adapters-both@latest)
+run: 2026-08-25T11:06:44Z
+python: Python 3.12.3
+======================================================================
+
+### 0. the live facts these files were adapted to (read-only az calls)
+$ az ml model list -g rg-multilora -w mlw-multilora -o table
+Name              Description    Latest version    ResourceGroup
+----------------  -------------  ----------------  ---------------
+adapter-meridian                 1                 rg-multilora
+adapter-vantage                  1                 rg-multilora
+adapters-both                    1                 rg-multilora
+
+$ az ml model show --name adapters-both --label latest --query '{name,version,type,path}'
+{
+  "name": "adapters-both",
+  "path": "azureml://subscriptions/97540688-009b-4a05-bea2-5cdea4cfe222/resourceGroups/rg-multilora/workspaces/mlw-multilora/datastores/workspaceartifactstore/paths/ExperimentRun/dcid.silver_rainbow_tjrh9xkt1j/outputs/adapters",
+  "type": "custom_model",
+  "version": "1"
+}
+
+Note the asset's source folder is literally named 'adapters'
+(.../outputs/adapters). That is exactly why start_server.sh globs for
+*/meridian/adapter_config.json instead of assuming a layout.
+
+### 1. bash -n on every tracked shell script
+  OK    scripts/check_no_model_imports.sh
+  OK    serve/azure/deploy.sh
+  OK    serve/azure/start_server.sh
+  OK    serve/spark/launch.sh
+  bash -n overall: rc=0
+
+### 2. YAML parse (PyYAML) on every tracked .yaml/.yml
+  OK    serve/azure/deployment.yaml
+  OK    serve/azure/endpoint.yaml
+  OK    serve/azure/environment.yaml
+  OK    train/azureml/job_devmatrix.yaml
+  OK    train/azureml/job_hf.yaml
+  OK    train/azureml/job_nemo.yaml
+  OK    train/config_meridian.yaml
+  OK    train/config_vantage.yaml
+  yaml parse overall: 8 files, 0 failures
+
+### 3. entry-10 guard: scripts/check_flag_continuation.py
+A physical line whose first token is a bare -flag is the shape of the bug
+that cost ~3.2 A100-hours. In a YAML command: scalar it is always the bug;
+in a shell script it is only correct when bash itself joins the lines
+(trailing backslash, unclosed paren) or when it is a case pattern.
+entry-10 guard: scanned 10 files
+  serve/azure/deploy.sh
+  serve/azure/deployment.yaml
+  serve/azure/endpoint.yaml
+  serve/azure/environment.yaml
+  serve/azure/start_server.sh
+  train/azureml/job_combine_adapters.yaml  (has a command: block scalar)
+  train/azureml/job_devmatrix.yaml  (has a command: block scalar)
+  train/azureml/job_hf.yaml  (has a command: block scalar)
+  train/azureml/job_nemo.yaml  (has a command: block scalar)
+  serve/spark/launch.sh
+entry-10 guard: PASS - every flag-starting line is one bash joins itself,
+                and no YAML command: scalar has one at all
+  rc=0
+
+  negative test - the guard must FAIL on the entry-10 shape:
+    entry-10 guard: scanned 2 files
+      <tmp>/bug.sh
+      <tmp>/bug.yaml  (has a command: block scalar)
+    entry-10 guard: FAIL
+      <tmp>/bug.sh:3: flag-only line that bash will NOT join to the line above: '--enable-lora'
+      <tmp>/bug.yaml:3: flag-only continuation line inside a YAML command: block scalar - a fold will NOT remove this newline: '--served-model-name base'
+      <tmp>/bug.yaml:4: flag-only continuation line inside a YAML command: block scalar - a fold will NOT remove this newline: '--enable-lora'
+    rc=1  (1 = the guard can actually fail; one that only ever passes proves nothing)
+
+### 4. schema + consistency spot-checks on the serve/azure YAMLs
+  PASS  deployment.model is a scalar asset reference, not an inline path block
+  PASS  deployment.model is the __ADAPTER_MODEL_REF__ token (renders to azureml:adapters-both@latest)
+  PASS  no azureml://datastores blob mechanism left in deployment.yaml
+  PASS  no inline model path/name/version block left in deployment.yaml
+  PASS  deployment.model_mount_path is an absolute linux path
+  PASS  deployment.environment references a registered environment
+  PASS  deployment has no inference_config (that key lives on the environment schema)
+  PASS  deployment has no command/args/entrypoint key (the schema defines none)
+  PASS  environment.inference_config declares all three routes
+  PASS  every route has exactly path+port
+  PASS  request_timeout_ms <= 180000 (documented maximum)
+  PASS  probes carry no path/port key (not on ProbeSettings)
+  PASS  liveness_probe.success_threshold == 1 (fixed by the docs)
+  PASS  MAX_CPU_LORAS >= MAX_LORAS (vLLM rule)
+  PASS  MAX_LORA_RANK == 16 (matches train/config_*.yaml dim)
+  PASS  MAX_MODEL_LEN == 4096 (proven live by job_devmatrix.yaml)
+  PASS  ADAPTER_MOUNT_ROOT mirrors model_mount_path
+  PASS  ADAPTER_NAMES matches the two tenants
+  PASS  instance_type is the quota-checked A100 SKU
+  PASS  endpoint auth_mode is key
+  PASS  endpoint sets no traffic (cannot be set at creation)
+  schema spot-checks: 21 passed, 0 failed
+
+### 5. start_server.sh adapter discovery, run for real against fake mounts
+This is the check that matters. The mount layout is undocumented, so the
+discovery code is exercised on BOTH plausible shapes plus the empty case.
+  PASS  flat        <root>/meridian/adapter_config.json
+        adapter root    /tmp/mount-w1x1b77e
+        matched pattern <root>/meridian/adapter_config.json
+        adapter meridian at /tmp/mount-w1x1b77e/meridian (2 bytes on disk)
+        adapter vantage at /tmp/mount-w1x1b77e/vantage (2 bytes on disk)
+  PASS  nested x1   <root>/adapters/meridian/adapter_config.json
+        adapter root    /tmp/mount-es1_n55i/adapters
+        matched pattern <root>/*/meridian/adapter_config.json
+        adapter meridian at /tmp/mount-es1_n55i/adapters/meridian (2 bytes on disk)
+        adapter vantage at /tmp/mount-es1_n55i/adapters/vantage (2 bytes on disk)
+  PASS  nested x2   <root>/adapters-both/1/meridian/adapter_config.json
+        adapter root    /tmp/mount-cqehelop/adapters-both/1
+        matched pattern <root>/*/*/meridian/adapter_config.json
+        adapter meridian at /tmp/mount-cqehelop/adapters-both/1/meridian (2 bytes on disk)
+        adapter vantage at /tmp/mount-cqehelop/adapters-both/1/vantage (2 bytes on disk)
+  PASS  empty mount -> HARD EXIT (rc=1), no base-only fallback
+        2026-08-25T11:06:52Z FATAL no adapter directory found. The deployment mounts azureml:adapters-both@latest; either the asset is missing/empty or the mount layout changed.  ...
+  discovery checks: 4 passed, 0 failed
+
+### 6. deploy.sh: the blob path is gone, the model-asset path is in
+  PASS - no blob/storage/staging command anywhere in deploy.sh
+  model-asset references in deploy.sh: 9
+  deploy_all step order (nothing billable above confirm_billing):
+        require_az
+        set_subscription         # free
+        check_model_asset        # free, and fails early if adapters-both is missing
+        confirm_billing          # <-- nothing billable happens above this line
+        create_group_and_workspace
+        register_environment
+        create_endpoint
+        create_deployment
+        fetch_credentials
+        probe_routes
+        smoke_test || true
+        show_gpu_logs
+
+### 7. the cost guardrail and teardown were NOT weakened
+print_cost / confirm_billing / teardown, diffed against HEAD:
+  IDENTICAL  print_cost()
+  IDENTICAL  confirm_billing()
+  CHANGED    teardown()  - diff below, and it must be informational only:
+    @@ -56,7 +56,7 @@
+         echo ""
+         echo "  Still costing a little (rupees per month, not per hour):"
+         echo "    - the workspace's storage account, key vault and container registry"
+    -    printf '    - the adapter storage account %s\n' "${STORAGE_ACCOUNT}"
+    +    printf '    - the registered model assets (%s and the per-tenant ones)\n' "${ADAPTER_MODEL_NAME}"
+         echo "  To remove everything including those:"
+         printf '      %s group delete --name %s --yes\n' "${AZ_BIN}" "${RESOURCE_GROUP}"
+         echo ""
+  (the one teardown change is the trailer line naming what still costs money:
+   the standalone adapter storage account no longer exists, so it names the
+   registered model assets instead. The delete + list-to-verify logic is
+   byte-identical.)
+
+### 8. the guardrail still refuses non-interactively
+==========================================================================
+deploy: FATAL not an interactive terminal and ASSUME_YES=yes-bill is not set; refusing to bill
+  (with no tty AND no ASSUME_YES=yes-bill the script exits before any
+   billable command; the typed-phrase path needs a terminal, so it is
+   exercised by hand, not here)
+
+### 9. deploy.sh cost subcommand
+==========================================================================
+  COST ESTIMATE - READ BEFORE CONTINUING
+==========================================================================
+  SKU                     Standard_NC24ads_A100_v4 (1x A100 80GB, 24 vCPU)
+  region                  southcentralus
+  instances               1
+  rate                    $3.673 / hour   (ESTIMATE - VERIFY AT RUN TIME)
+                          ~Rs 320 / hour at Rs 87.0 per USD
+  planned session         3 hours
+  PROJECTED SESSION COST  $11.02   (~Rs 959)
+
+### 10. model-free guardrail (scripts/check_no_model_imports.sh)
+guardrail: checking data/verifier.py eval for model-client imports
+guardrail: PASS - no model-client imports in data/verifier.py eval
+
+### 11. verifier self-test
+13 cases, 13 match, 0 mismatch
+SELF-TEST: PASS
+
+### 12. full test suite: .venv/bin/python -m pytest tests/ data/test_outputs.py -q
+=========================== short test summary info ============================
+FAILED tests/test_tooling.py::test_separation_sealed_refuses_without_hash_file
+FAILED tests/test_tooling.py::test_separation_sealed_roundtrip_and_tamper - A...
+ERROR tests/test_tooling.py::test_make_report_says_not_measured_when_a_log_is_absent
+2 failed, 23 passed, 1 error in 11.68s
+
+  PRE-EXISTING, NOT CAUSED BY THIS CHANGE. Verified by stashing every file
+  in this commit and re-running against a clean HEAD: identical result,
+  2 failed / 23 passed / 1 error. Cause: tests/test_tooling.py:256 and its
+  teardown at :201 assert that eval/SEALED.sha256 does NOT exist. They were
+  written for the Stage 1 tooling (commit e266b46) when that was true;
+  commit 92e0f3a ('Stage 1: dataset frozen - sealed set hashed') then
+  legitimately created the file. The tests encode a precondition the repo
+  outgrew. Nothing under serve/ is involved, so it is reported here rather
+  than fixed inside a serving commit.
+
+======================================================================
+NOT CHECKED HERE - only a live deployment can settle these:
+  * whether the mounted adapters land at $AZUREML_MODEL_DIR/adapters/meridian
+    or $AZUREML_MODEL_DIR/meridian (start_server.sh handles both and LOGS which)
+  * whether AZUREML_MODEL_DIR follows a custom model_mount_path
+  * /score vs /v1/chat/completions on the public scoring URI (deploy.sh probes)
+  * that the ACR build of the BYOC image succeeds, and how long it takes
+  * the per-adapter GPU memory deltas that retire the estimate in bench/economics.py
+======================================================================
