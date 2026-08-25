@@ -1,0 +1,136 @@
+# PEFT LoRA training config - tenant: vantage (Vantage Cloud)
+#
+# READ THIS FIRST. This is NOT a NeMo Hydra config file.
+#
+# NeMo 1.0 was configured with Hydra YAML (megatron_gpt_finetuning_config.yaml).
+# NeMo 2.x is not. The NeMo 2.0 overview says so directly: "In NeMo 1.0, the
+# main interface for configuring experiments is through YAML files... NeMo 2.0
+# shifts to a Python-based configuration."
+# https://docs.nvidia.com/nemo-framework/user-guide/25.09/nemo-2.0/index.html
+# The SFT migration page repeats it for fine-tuning specifically:
+# https://docs.nvidia.com/nemo-framework/user-guide/25.09/nemo-2.0/migration/sft.html
+#
+# So this file is THIS PROJECT'S config surface, not NeMo's. train/train_lora.py
+# reads it and calls the verified NeMo 2.x Python API with these values. Every
+# key below carries the NeMo API call it maps to. Both training routes
+# (train_lora.py and the train_lora_hf.py fallback) read the same file, which is
+# what keeps the two routes on identical hyperparameters.
+
+tenant: vantage
+
+base_model:
+  # Fixed by the client. Listed with recipe support "Yes" at
+  # https://docs.nvidia.com/nemo-framework/user-guide/25.09/llms/llama_nemotron.html
+  hf_id: nvidia/Llama-3.1-Nemotron-Nano-8B-v1
+  # NeMo needs an HF checkpoint imported to its own format first:
+  #   llm.import_ckpt(model=..., source='hf://<hf_id>')
+  # https://docs.nvidia.com/nemo-framework/user-guide/24.07/nemo-2.0/features/hf-integration.html
+  # CHECK: the NeMo config CLASS NAME for Llama-3.1-Nemotron-Nano-8B is not
+  # CHECK: published. The Llama Nemotron page gives an import_ckpt example only
+  # CHECK: for the Ultra 253B (llm.Llama31NemotronUltra253BConfig). The Nano 8B
+  # CHECK: class name is a guess and must be read off `dir(nemo.collections.llm)`
+  # CHECK: inside the container before the first run. train_lora.py refuses to
+  # CHECK: proceed on a name it cannot resolve rather than silently substituting.
+  nemo_config_class: Llama31NemotronNano8BConfig
+  nemo_model_class: LlamaNemotronModel
+
+peft:
+  scheme: lora
+  # NeMo 2.x calls the rank `dim`, NOT `r` and NOT `rank`. Verified:
+  #   llm.peft.LoRA(dim=8, alpha=16)
+  # https://docs.nvidia.com/nemo-framework/user-guide/25.09/sft_peft/peft_nemo2.html
+  # Full parameter table (dim / alpha / dropout / dropout_position / target_modules):
+  # https://docs.nvidia.com/nemo/megatron-bridge/latest/apidocs/bridge/bridge.peft.lora.html
+  dim: 16
+  alpha: 32
+  dropout: 0.05
+
+  # Written in Hugging Face module names because that is the portable form: it
+  # is what train_lora_hf.py passes straight to peft.LoraConfig, and it is what
+  # ends up in the exported adapter_config.json that vLLM and NIM load.
+  #
+  # NeMo does NOT accept these names. Megatron fuses projections, and the
+  # documented target_modules values are linear_qkv / linear_proj / linear_fc1 /
+  # linear_fc2:
+  # https://docs.nvidia.com/nemo/megatron-bridge/latest/apidocs/bridge/bridge.peft.module_matcher.html
+  # train_lora.py translates, and prints the translation before it runs:
+  #   q_proj, k_proj, v_proj   -> linear_qkv    (fused QKV)
+  #   o_proj                   -> linear_proj
+  #   gate_proj, up_proj       -> linear_fc1    (fused gated MLP)
+  #   down_proj                -> linear_fc2
+  # The NeMo docs note the consequence: "the Hugging Face implementation is
+  # equivalent to NeMo's CanonicalLoRA, not LoRA. However both can be converted
+  # to the Hugging Face implementation."
+  # https://docs.nvidia.com/nemo-framework/user-guide/25.09/sft_peft/peft_nemo2.html
+  # Set nemo_use_canonical: true to keep q/k/v as three separate adapters
+  # instead of one fused adapter.
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  nemo_use_canonical: false
+
+trainer:
+  seed: 1234
+  # 3 epochs on a few hundred rows is a starting point, not a tuned value.
+  # Revisit after the Stage 2 dev matrix: if the dev-set separation number is
+  # already flat at epoch 2, 3 is wasted A100 time and this budget cannot
+  # afford wasted A100 time.
+  max_epochs: 3
+  # nl.MegatronMixedPrecision(precision="bf16-mixed")
+  # https://docs.nvidia.com/nemo-framework/user-guide/25.09/nemo-2.0/migration/trainer.html
+  precision: bf16-mixed
+  devices: 1
+  num_nodes: 1
+  accelerator: gpu
+  val_check_interval: 1.0
+  limit_val_batches: 1.0
+
+optim:
+  # 1e-4 is the standard LoRA starting point. LoRA tolerates a learning rate
+  # roughly an order of magnitude above full fine-tuning because only the
+  # adapter matrices move. Not tuned; the first thing to sweep if the adapter
+  # underfits.
+  lr: 1.0e-4
+  min_lr: 1.0e-5
+  optimizer: adam
+  # nl.lr_scheduler.CosineAnnealingScheduler, wrapped by
+  # nl.MegatronOptimizerModule(config=OptimizerConfig(...), lr_scheduler=...)
+  # https://docs.nvidia.com/nemo-framework/user-guide/25.09/nemo-2.0/migration/optim.html
+  scheduler: cosine
+  warmup_steps: 10
+  weight_decay: 0.01
+  use_distributed_optimizer: true
+
+data:
+  # Produced by `python data/generate.py package`. Chat format, one JSON object
+  # per line: {"messages":[{system},{user},{assistant}]}, and every system
+  # message is exactly the string below.
+  train_file: data/generated/train_vantage.jsonl
+  system_message: "detailed thinking off"
+  # NeMo's FineTuningDataModule expects {"input", "output"} rows in a directory
+  # holding training.jsonl / validation.jsonl / test.jsonl, NOT chat rows:
+  # https://docs.nvidia.com/nemo-framework/user-guide/25.09/data/finetune_data.html
+  # train_lora.py converts the chat JSONL into that layout under nemo_data_root
+  # and prints the row counts.
+  # CHECK: NeMo also ships a ChatDataModule described only as "sets a few
+  # CHECK: default arguments on top of FineTuningDataModule". Its import path
+  # CHECK: and its expected JSONL schema are not published, so it is not used
+  # CHECK: here. If it does accept OpenAI-style {"messages": [...]} rows, the
+  # CHECK: conversion step below becomes unnecessary - check inside the
+  # CHECK: container and record the answer in change_log.md.
+  nemo_data_root: train/out/vantage_nemo_data
+  validation_fraction: 0.1
+  seq_length: 2048
+  global_batch_size: 8
+  micro_batch_size: 1
+
+output:
+  nemo_ckpt_dir: train/out/vantage_nemo
+  hf_adapter_dir: train/out/vantage_hf
+  log_dir: train/logs
+  experiment_name: multilora-vantage-lora-r16

@@ -1,0 +1,202 @@
+# Azure ML v2 managed online deployment: vLLM + two LoRA adapters on one A100.
+#
+# Schema and every key below verified 2026-08-24 against
+# https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-deployment-managed-online
+# Custom-container specifics verified against
+# https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-custom-container
+#
+# __PLACEHOLDER__ tokens are substituted by deploy.sh into a rendered copy under
+# the scratch directory. They are plain YAML scalars, so this file still parses
+# unrendered, which is what the CI check in data/logs/stack_draft_checks.log does.
+
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.schema.json
+name: __DEPLOYMENT_NAME__
+endpoint_name: __ENDPOINT_NAME__
+
+# ---------------------------------------------------------------------------
+# adapters
+# ---------------------------------------------------------------------------
+# HOW THE ADAPTERS GET INTO THE CONTAINER.
+#
+# The spec for this project said "adapters mounted from Azure Blob Storage".
+# The documented mechanism for a managed online deployment is NOT a raw blob
+# mount - it is a registered MODEL ASSET, whose `path` may itself be a blob/
+# datastore URI. The model-specification doc says model files are "automatically
+# downloaded to the endpoint and mounted" and exposed at AZUREML_MODEL_DIR, and
+# `model_mount_path` is documented as "The path to mount the model in a custom
+# container. Applicable only for custom container deployment scenarios, where
+# environment has inference_config configured." So the blob storage is still the
+# system of record; the model asset is the supported way to project it into the
+# container.
+#
+# CHECK: no documented way to mount an arbitrary Azure Blob container directly
+# CHECK: into a MANAGED online deployment was found. Datastore/blob mounting is
+# CHECK: documented for jobs, not for online deployments. If a direct mount is
+# CHECK: required (e.g. adapters that change without a redeploy), the verified
+# CHECK: alternative is vLLM's runtime LoRA API - set
+# CHECK: VLLM_ALLOW_RUNTIME_LORA_UPDATING=True and POST /v1/load_lora_adapter
+# CHECK: (https://docs.vllm.ai/en/latest/features/lora.html) - which sidesteps
+# CHECK: the deployment lifecycle entirely. Not used here: it widens the attack
+# CHECK: surface on a key-auth endpoint for no benefit at two tenants.
+#
+# `path` below points at a LOCAL folder laid out as:
+#     <path>/meridian/adapter_config.json + adapter_model.safetensors
+#     <path>/vantage/adapter_config.json  + adapter_model.safetensors
+# deploy.sh overrides it with the blob/datastore URI form
+#     azureml://datastores/workspaceblobstore/paths/<prefix>
+# once it has uploaded the adapters, so the blob copy is what is registered.
+model:
+  name: __ADAPTER_MODEL_NAME__
+  version: __ADAPTER_MODEL_VERSION__
+  # `custom_model` is the right type for opaque files that AzureML must not try
+  # to interpret. https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-model
+  type: custom_model
+  path: __ADAPTER_SOURCE_PATH__
+  description: LoRA adapters for tenants meridian and vantage, rank 16.
+
+# The model lands at <model_mount_path>/<model-name>/<version>/. start_server.sh
+# does not assume that layout - it resolves the adapter root by searching
+# AZUREML_MODEL_DIR, then MODEL_MOUNT_PATH, then this path, for a directory
+# containing the first adapter name, and logs which one it found.
+model_mount_path: /mnt/adapters
+
+# ---------------------------------------------------------------------------
+# container
+# ---------------------------------------------------------------------------
+# Registered separately by deploy.sh from serve/azure/environment.yaml, which is
+# where the Dockerfile build context and the inference_config routes live.
+# Referencing a registered environment rather than inlining it is what the
+# schema page calls the production best practice.
+environment: azureml:__ENVIRONMENT_NAME__:__ENVIRONMENT_VERSION__
+
+# code_configuration is deliberately absent. The schema says it "is optional for
+# custom container deployment scenarios" - there is no scoring script here,
+# because vLLM is the server.
+
+# ---------------------------------------------------------------------------
+# hardware
+# ---------------------------------------------------------------------------
+# 1x A100 80GB, 24 vCPU. Listed under the NCADSA100v4 family on the managed
+# online endpoint SKU list:
+# https://learn.microsoft.com/en-us/azure/machine-learning/reference-managed-online-endpoints-vm-sku-list
+# The `Standard_` prefix is how the SKU list spells it.
+#
+# COST. This is the single most expensive line in the repository. One instance
+# bills continuously from the moment the deployment is created until it is
+# deleted, whether or not a request ever arrives. deploy.sh will not create it
+# without an explicit typed confirmation, and `deploy.sh teardown` exists
+# because forgetting this line is how a 10,000 rupee budget disappears.
+instance_type: Standard_NC24ads_A100_v4
+instance_count: 1
+
+# ---------------------------------------------------------------------------
+# runtime configuration for start_server.sh
+# ---------------------------------------------------------------------------
+# Nothing about the tenant set is baked into the image; it is all here.
+environment_variables:
+  BASE_MODEL: nvidia/Llama-3.1-Nemotron-Nano-8B-v1
+  SERVED_BASE_NAME: base
+  ADAPTER_NAMES: meridian,vantage
+  VLLM_PORT: "8000"
+  # Must be >= the `dim` in train/config_*.yaml. Both are 16.
+  MAX_LORA_RANK: "16"
+  # "Max number of LoRAs in a single batch" (vLLM engine args, default 1).
+  # 4 gives headroom over the 2 tenants so a third adapter can be added without
+  # thrashing. See the "what breaks" section of ARCHITECTURE.md.
+  MAX_LORAS: "4"
+  # "Maximum number of LoRAs to store in CPU memory. Must be >= than max_loras."
+  MAX_CPU_LORAS: "8"
+  # vLLM's own default is 0.92. Trimmed slightly: the container also holds the
+  # HF download cache and the sampler, and an OOM at load costs a redeploy.
+  GPU_MEMORY_UTILIZATION: "0.90"
+  # HF cache. Kept off the (small) container root filesystem.
+  HF_HOME: /mnt/hfcache
+  # Timestamped nvidia-smi sample every N seconds to stdout, recovered later
+  # with `az ml online-deployment get-logs`. This is how the GPU memory numbers
+  # in reports/ are captured.
+  MEM_SAMPLE_SECONDS: "30"
+  # Give the base-weight download and load a generous budget before declaring
+  # the server dead. ~16 GB over the wire plus load time.
+  READY_TIMEOUT_SECONDS: "1800"
+  # 1 = fire one request per adapter at startup so real users never pay the cold
+  # load. Set to 0 before running bench/swap_time.py, which needs a cold adapter
+  # to measure. Redeploy is required for the change to take effect.
+  WARM_ADAPTERS: "1"
+  # Set by deploy.sh from the HF_TOKEN in the operator's shell if present. The
+  # Nemotron Nano repo is public, so this is normally unnecessary; it is here so
+  # a gated base model does not require an image change.
+  HF_TOKEN: __HF_TOKEN__
+
+# ---------------------------------------------------------------------------
+# request handling
+# ---------------------------------------------------------------------------
+request_settings:
+  # Documented default is 5000 ms, which is far too short for a 2000-token
+  # generation on an 8B model. The docs state "the maximum value allowed is
+  # 180000 milliseconds" - this is that maximum.
+  #
+  # NOTE: eval/separation.py and bench/swap_time.py both use a client-side
+  # REQUEST_TIMEOUT_S of 300. The server-side ceiling here is 180 s, so the
+  # server gives up first. That is the correct order (a truncated request is
+  # visible as a non-200 in the raw log rather than as a client hang), but it
+  # means a generation legitimately longer than 180 s cannot be measured through
+  # a managed endpoint at all.
+  request_timeout_ms: 180000
+  # Documented default is 1, which would serialise every request and make the
+  # concurrency in bench/run_matrix.py meaningless. vLLM does its own batching,
+  # so the deployment should not be the queue.
+  max_concurrent_requests_per_instance: 32
+
+# ---------------------------------------------------------------------------
+# probes
+# ---------------------------------------------------------------------------
+# ProbeSettings has NO path/port keys - verified against the schema table. The
+# route itself comes from environment.yaml's inference_config.liveness_route /
+# readiness_route, both of which point at vLLM's GET /health on port 8000.
+# Only the timing lives here.
+#
+# The defaults (initial_delay 10, period 10, failure_threshold 30) give the
+# container 10 + 30*10 = ~310 s to become healthy. Downloading and loading ~16 GB
+# of base weights will not reliably finish in 310 s, and the deployment would be
+# killed and rolled back mid-load. These numbers are the fix.
+#   initial_delay 900  -> ~15 min of grace before the first probe
+#   period 30, failure_threshold 40 -> ~20 more min of retries
+# giving roughly 35 minutes of total startup budget.
+#
+# CHECK: no documented TOTAL startup budget for a managed online deployment was
+# CHECK: found - only the per-probe settings above. Azure ML may impose its own
+# CHECK: provisioning timeout independent of these values. If the deployment
+# CHECK: fails with a timeout while the logs still show the download running,
+# CHECK: that is the cause, and the fix is to bake the base weights into the
+# CHECK: image (see serve/azure/README.md, "If startup times out").
+readiness_probe:
+  initial_delay: 900
+  period: 30
+  timeout: 10
+  success_threshold: 1
+  failure_threshold: 40
+liveness_probe:
+  initial_delay: 900
+  period: 30
+  timeout: 10
+  # "The value for liveness probe is fixed as 1."
+  success_threshold: 1
+  failure_threshold: 40
+
+# ---------------------------------------------------------------------------
+# misc
+# ---------------------------------------------------------------------------
+# `enabled` is the documented default. It is stated explicitly because the
+# container MUST reach the Hugging Face hub at startup to pull the base weights.
+# Setting this to `disabled` without first baking the weights into the image
+# gives a container that hangs on download until the probe kills it.
+egress_public_network_access: enabled
+
+# Off by default. Turning it on adds Application Insights cost, and the GPU
+# memory numbers this project needs come from container stdout via
+# `az ml online-deployment get-logs`, not from App Insights.
+app_insights_enabled: false
+
+tags:
+  project: multi-lora
+  tenants: meridian,vantage

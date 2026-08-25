@@ -1,0 +1,31 @@
+# Azure ML v2 managed online endpoint.
+#
+# Schema and every key below verified 2026-08-24 against
+# https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-endpoint-online
+#
+#   name       string, the ONLY required key on this schema.
+#   auth_mode  allowed values are exactly key | aml_token | aad_token,
+#              default key. `key` gives a static bearer key, which is what
+#              every tool in this repo expects (Authorization: Bearer <key>,
+#              read from an env var named by --api-key-env).
+#
+# Deliberately NOT set here:
+#   compute    Kubernetes-only. The docs say "Don't specify this field if you're
+#              doing managed online inference."
+#   traffic    "you can't set this field during online endpoint creation".
+#              deploy.sh sends traffic with `az ml online-deployment create
+#              --all-traffic` instead.
+#
+# __ENDPOINT_NAME__ is substituted by deploy.sh. It is left as a plain scalar so
+# this file still parses as YAML in CI without rendering.
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineEndpoint.schema.json
+name: __ENDPOINT_NAME__
+description: >-
+  Two-tenant multi-LoRA endpoint. One frozen Llama-3.1-Nemotron-Nano-8B base
+  plus the meridian and vantage LoRA adapters, served by vLLM behind an
+  OpenAI-compatible API. Adapter selection is the request body's `model` field.
+auth_mode: key
+tags:
+  project: multi-lora
+  stage: "3"
+  cost_warning: idle A100 endpoint bills by the hour - run deploy.sh teardown

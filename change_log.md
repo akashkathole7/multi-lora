@@ -153,3 +153,129 @@ preferred generators are NVIDIA genai-perf and vLLM's `benchmarks/benchmark_serv
 both of which report the same metric names and one of which produces a true per-token-pair
 ITL distribution that the fallback cannot. Four `# CHECK:` comments in the file mark where
 the swap goes. The arms and the metric row do not change when it happens.
+
+## Entry 4 — Stage 2 draft: training and serving stack, verified against docs, unrun
+
+**Date:** 2026-08-25
+
+**What.** Drafted the two halves of the project that have never had code:
+training and serving. `train/` gets two routes to the same artifact — a rank-16
+LoRA adapter per tenant in Hugging Face PEFT layout. Route A is
+`train_lora.py` on the NeMo Framework 2.x API; route B is `train_lora_hf.py` on
+HF PEFT + TRL `SFTTrainer`, openly stated as the fallback. `convert_to_hf.py`
+wraps NeMo's documented `hf-peft` exporter and adds a `--verify` mode that
+checks any adapter directory against the training config. Both routes read the
+same `config_<tenant>.yaml`. `serve/azure/` gets a BYOC vLLM container, the
+three `az ml` YAMLs, and `deploy.sh` — zero to scoring URI to smoke test to
+teardown, behind a mandatory cost guardrail. `serve/spark/launch.sh` is the
+on-prem DGX Spark path with the same flags. `ARCHITECTURE.md` explains the whole
+thing to a non-specialist reader. README gains Training and Serving sections and
+a consolidated **Unverified items (# CHECK list)**.
+
+**Why.** Everything before this entry was measurement without a subject. The
+tooling from entry 3 can measure an endpoint, and there was no endpoint; the
+verifier can gate training data, and there was no training. This entry writes
+the subject down. It is drafted rather than run because nothing here can run
+today: there is no GPU on this machine, no Azure CLI, no adapters, and Stage 1
+data generation is still blocked on `ANTHROPIC_API_KEY`.
+
+**Problem it solves.** Three, and they are all the same shape — a plausible
+guess that fails late and expensively.
+
+First, invented flags. An 8B model on a billing A100 is a bad place to discover
+that `--max-lora-rank` is spelled differently or that a YAML key does not exist.
+So every vLLM flag, NeMo API call, TRL/PEFT argument and `az ml` schema key was
+checked against official documentation, and anything the docs did not settle got
+a `# CHECK:` at the exact line plus an entry in README rather than a confident
+guess. Two of those checks changed the code: `vllm serve` **rejects** `--model`
+and needs the model positionally, and NeMo calls the LoRA rank `dim`, not `r`.
+
+Second, silent divergence between the two training routes. A fallback that
+trains on different hyperparameters is not a fallback, it is a second
+experiment. Both routes read one config file, and check 6 in the check log
+asserts they resolve to the same rank, alpha, dropout, seed, epochs, learning
+rate, sequence length and effective global batch.
+
+Third, the budget. The whole project is ₹10,000 and one hour of the target SKU
+is about ₹320. `deploy.sh` prints the SKU, the rate, and the projected session
+cost, then refuses to create anything billable until the operator types
+`yes-bill`; it refuses outright in a non-interactive shell. `teardown` deletes
+the deployment and endpoint and then **lists the endpoints to confirm the name
+is gone**, because a delete that returned zero is not evidence.
+
+**Expected impact.** Stage 3 runs `deploy.sh`, points the entry-3 tools at the
+scoring URI it prints, and gets real numbers. The `# CHECK` list is the agenda
+for that session: each item is resolved by observation and recorded here.
+
+**Measured impact.** Syntax, parse and consistency checks only — no model was
+called, no GPU was touched, no Azure resource was created. 3 new `.py` files
+plus every tracked `.py` compile under `py_compile`. 4 `.sh` files pass
+`bash -n`. 5 `.yaml` files parse under PyYAML 6.0.3. 11 schema spot-checks pass
+on the Azure YAMLs, including `request_timeout_ms <= 180000` (the documented
+maximum), probes carrying no `path`/`port` key (they do not exist on
+`ProbeSettings`; the routes live in `inference_config`), and
+`MAX_CPU_LORAS >= MAX_LORAS` (vLLM's documented rule). 13 config checks confirm
+the hyperparameters match the spec. 18 cross-route checks confirm both trainers
+resolve identically. The cost guardrail was exercised three ways: refuses
+non-interactively, aborts on a wrong phrase with nothing created, proceeds only
+on `yes-bill`. Guardrail grep still PASSes. Existing suite: **20 passed in
+11.36s**, unchanged.
+
+Doc verification, all 2026-08-24. Confirmed: vLLM `--enable-lora`,
+`--max-lora-rank`, `--max-loras`, `--max-cpu-loras`, `--lora-modules`,
+`--served-model-name`, `--gpu-memory-utilization`, `--max-num-seqs`, `/health`,
+and image `vllm/vllm-openai:v0.27.1` (Docker Hub, pushed 2026-08-11, upstream
+`ENTRYPOINT ["vllm", "serve"]`). Azure ML endpoint/deployment/environment YAML
+schemas including `inference_config.{liveness,readiness,scoring}_route.{path,port}`.
+NeMo 2.x `llm.peft.LoRA(dim=…)`, the `linear_qkv`/`linear_proj`/`linear_fc1`/
+`linear_fc2` module names, `FineTuningDataModule`'s `{"input","output"}` rows,
+`MegatronMixedPrecision(precision="bf16-mixed")`, `CosineAnnealingScheduler`,
+`llm.export_ckpt(target='hf-peft')`, and that NeMo 2.0 replaced YAML config with
+Python. TRL `SFTConfig`/`SFTTrainer` (note: `max_length`, not `max_seq_length`)
+and PEFT `LoraConfig`. NIM `NIM_PEFT_SOURCE`. Full list with URLs is in
+README.md under "What *was* verified".
+
+**Evidence.** `data/logs/stack_draft_checks.log` (every check above, with its
+output), `README.md` "Unverified items (# CHECK list)", `versions.lock`
+(regenerated 2026-08-25 with a dated note; PyYAML 6.0.3 is the only addition).
+
+**Not done in this stage.** Nothing here has been executed against real
+hardware. No adapter has been trained, no endpoint created, no Azure resource
+provisioned, no model called. Every file in `train/` and `serve/` is a draft
+whose correctness rests on documentation plus syntax checking. The numbers in
+`ARCHITECTURE.md` marked `~` — the ~84 MB adapter size in particular — are
+arithmetic over published layer dimensions, not measurements, and the document
+says so where they appear.
+
+**Open item for Stage 3 — the routing question.** Azure's docs do not state what
+literal path a BYOC container receives when a client POSTs to a scoring URI
+ending in `/score`, nor whether a client may address `/v1/chat/completions` on it
+directly. `environment.yaml` sets `scoring_route.path: /v1/chat/completions`,
+which is the documented BYOC pattern, and `deploy.sh` probes both URLs against
+the live endpoint and prints which answered. Record the answer here. It matters
+beyond tidiness: `eval/separation.py` and `bench/*.py` build their URL by
+appending `/v1/chat/completions`, so they cannot construct a bare `/score` and
+would need a local rewrite proxy if `/score` turns out to be the only route.
+
+**Open item for Stage 3 — the NeMo class name.** `config_*.yaml` names
+`Llama31NemotronNano8BConfig` and it is a guess; NVIDIA publishes an
+`import_ckpt` example only for the Ultra 253B variant. `train_lora.py` refuses to
+run on a name it cannot resolve and prints the candidates visible in the
+container. Read the real name off `dir(llm)` and record it here. Related and
+unresolved: whether `seed_everything` actually reaches Megatron's data sampler
+and parallel RNG, which decides whether "seed 1234" means reproducible or merely
+reproducible-ish.
+
+**Open item for Stage 3 — the chat template.** Route A flattens chat rows into
+NeMo's `{"input","output"}` shape and relies on NeMo to template them; how it
+does that is undocumented. If the training-time prompt shape differs from the
+serving-time one, the separation number is quietly low with no visible error.
+Inspect the tokenised first batch before committing to a 3-epoch run. Route B
+does not have this problem — TRL applies the tokenizer's own chat template to
+conversational rows — which is the one respect in which the fallback is better
+than the primary.
+
+**Note on this entry.** The working session behind it was interrupted partway
+and resumed; the partial files on disk were finished rather than rewritten. No
+effect on the result, recorded because the commit spans one session in the log
+and two in reality.

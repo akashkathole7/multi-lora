@@ -1,0 +1,62 @@
+# Azure ML v2 environment: the BYOC (bring-your-own-container) serving image.
+#
+# Schema and every key verified 2026-08-24 against
+# https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-environment
+#
+#   image / build   "One of `image` or `build` is required."  We use `build`,
+#                   because the Dockerfile in this directory is what adds
+#                   start_server.sh on top of the upstream vLLM image. Azure ML
+#                   builds it in the workspace ACR.
+#   build.path      "Local path to the directory to use as the build context."
+#   build.dockerfile_path
+#                   "Relative path to the Dockerfile within the build context."
+#                   Default is `Dockerfile`; stated anyway so it is explicit.
+#   inference_config
+#                   "Inference container configurations. Only applicable if the
+#                   environment is used to build a serving container for online
+#                   deployments." The custom-container how-to is blunter: "The
+#                   `inference_config` parameter is required if you want to run
+#                   your own container with a managed online endpoint."
+#                   https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-custom-container
+#   *_route.path / *_route.port
+#                   Exactly these two sub-keys per route. Verified in the
+#                   inference_config attribute table on the environment schema
+#                   page.
+#
+# ROUTES.
+#   liveness  / readiness -> vLLM's GET /health on port 8000. /health is a
+#             documented vLLM endpoint:
+#             https://docs.vllm.ai/en/latest/serving/online_serving/
+#   scoring   -> vLLM's POST /v1/chat/completions on port 8000. The docs' own
+#             BYOC example maps a non-AzureML path this way
+#             (`path: /v1/models/half_plus_two:predict`, `port: 8501`), so
+#             pointing scoring_route at an OpenAI route is the documented
+#             pattern, not a hack.
+#
+# CHECK: what literal path the container receives when a client POSTs to the
+# CHECK: public scoring URI (which ends in /score) is NOT stated anywhere in the
+# CHECK: Azure docs, and neither is whether a client may call an arbitrary path
+# CHECK: such as /v1/chat/completions directly on the scoring URI. Both readings
+# CHECK: are consistent with the docs. deploy.sh resolves this at run time by
+# CHECK: probing both URLs against the live endpoint and printing which one
+# CHECK: answered; feed that URL to eval/ and bench/ as --endpoint. See the
+# CHECK: "Routing" section of serve/azure/README.md.
+$schema: https://azuremlschemas.azureedge.net/latest/environment.schema.json
+name: __ENVIRONMENT_NAME__
+description: vLLM OpenAI server with multi-LoRA enabled, for the two-tenant endpoint.
+os_type: linux
+build:
+  path: .
+  dockerfile_path: Dockerfile
+inference_config:
+  liveness_route:
+    path: /health
+    port: 8000
+  readiness_route:
+    path: /health
+    port: 8000
+  scoring_route:
+    path: /v1/chat/completions
+    port: 8000
+tags:
+  project: multi-lora

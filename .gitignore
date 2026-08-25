@@ -2,3 +2,13 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Stage 2 draft: build/run artifacts, never committed
+train/out/
+train/logs/*.log
+train/logs/*.json
+serve/azure/.rendered/
+serve/azure/logs/*
+serve/spark/logs/*
+!serve/azure/logs/.gitkeep
+!serve/spark/logs/.gitkeep

@@ -1,8 +1,16 @@
-# versions.lock - frozen build environment for Stage 0
-# date: 2026-08-24
-# python: Python 3.12.3
-# pip: pip 26.2.1
-# venv: .venv (created in-repo, gitignored; installed: pytest, anthropic)
+# versions.lock - frozen build environment
+# date: 2026-08-24 (Stage 0/1)
+# updated: 2026-08-25 - added PyYAML 6.0.3 to .venv so the Stage 2 draft's
+#          YAML files (train/config_*.yaml, serve/azure/*.yaml) can be
+#          parse-checked, and so train/train_lora*.py can read their shared
+#          config. PyYAML is the only new dependency; nothing else moved.
+# python: 3.12.3
+# pip: 26.2.1
+# venv: .venv (created in-repo, gitignored; installed: pytest, anthropic, pyyaml)
+#
+# NOT installed here and not needed here: torch, transformers, peft, trl,
+# datasets, nemo. train/train_lora*.py import them lazily and run on an
+# A100, never on this machine. --dry-run works without any of them.
 #
 annotated-types==0.8.0
 anthropic==1.0.0
@@ -20,6 +28,7 @@ pydantic==2.13.4
 pydantic_core==2.46.4
 Pygments==2.21.0
 pytest==9.1.1
+PyYAML==6.0.3
 sniffio==1.3.1
 truststore==0.10.4
 typing-inspection==0.4.4

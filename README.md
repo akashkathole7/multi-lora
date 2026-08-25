@@ -19,6 +19,7 @@ and no adapter has been trained.
 ## Layout
 
 ```
+ARCHITECTURE.md        how the whole thing works, for a non-specialist reader
 data/verifier.py       deterministic schema + vocabulary checker (stdlib only)
 data/test_outputs.py   the fixture verdict table, pytest or plain python
 data/generate.py       goals -> outputs -> filter -> package
@@ -29,8 +30,14 @@ eval/separation.py     the proof artifact: per-arm tenant confusion matrix
 bench/                 swap_time.py, run_matrix.py, economics.py
 scripts/               guardrail + make_report.py
 tests/                 self-test for the measurement tooling
-train/ serve/          later stages, empty
+train/                 two LoRA routes (NeMo primary, HF PEFT fallback) + configs
+serve/azure/           vLLM container, az ml YAMLs, deploy.sh with a cost guardrail
+serve/spark/           the on-prem DGX Spark path
 ```
+
+Nothing under `train/` or `serve/` has been run. Both stacks are drafted against
+documentation and syntax-checked; the "Unverified items" section at the bottom of
+this file lists every flag, key and API call that documentation did not settle.
 
 ## Run the verifier self-test
 
@@ -145,6 +152,196 @@ ever run against. `eval/separation.py --make-sealed-hash FILE` writes
 run unless the goals file still matches that hash, and refuses a second sealed
 run unless `--allow-rerun` is given. No sealed set exists yet — it is created at
 Stage 3, against goals held out of training.
+
+## Training
+
+Two routes to the same artifact: a rank-16 LoRA adapter per tenant in Hugging
+Face PEFT layout. Both read the same `train/config_<tenant>.yaml`, so the
+hyperparameters cannot drift between them. Full detail in `train/README.md`.
+
+| | route A (primary) | route B (fallback) |
+| --- | --- | --- |
+| script | `train/train_lora.py` | `train/train_lora_hf.py` |
+| stack | NeMo Framework 2.x | HF PEFT + TRL `SFTTrainer` |
+| environment | `nvcr.io/nvidia/nemo` container | `pip install torch transformers peft trl datasets` |
+| output | `.nemo`, then `train/convert_to_hf.py` | HF PEFT adapter directly |
+
+```bash
+# resolves the config, converts the data, prints the API calls, imports nothing
+.venv/bin/python train/train_lora.py    --tenant meridian --dry-run
+.venv/bin/python train/train_lora_hf.py --tenant meridian --dry-run
+
+# the real thing, on an A100
+python train/train_lora.py --tenant meridian          # route A
+python train/convert_to_hf.py --tenant meridian       # .nemo -> HF PEFT
+python train/train_lora_hf.py --tenant meridian       # route B, no conversion
+
+# either route, before serving
+python train/convert_to_hf.py --verify train/out/meridian_hf
+```
+
+Hyperparameters: rank 16, alpha 32, dropout 0.05, seven target projections,
+seed 1234, bf16, 3 epochs, lr 1e-4 cosine, global batch 8, seq len 2048.
+
+Two things worth knowing before reading the code. **NeMo calls the LoRA rank
+`dim`; PEFT calls it `r`** — same number, two spellings, and the likeliest place
+for the two routes to diverge. And **NeMo does not accept Hugging Face module
+names**: Megatron fuses q/k/v into `linear_qkv` and gate/up into `linear_fc1`,
+so `train_lora.py` translates seven HF names into four NeMo ones and prints the
+translation before it runs.
+
+A route switch goes through `change_log.md`, not a commit message. Adapters
+trained by different routes are not interchangeable evidence.
+
+## Serving
+
+One frozen 8B base in GPU memory, both adapters resident beside it, adapter
+selection per request via the OpenAI `model` field (`base`, `meridian`,
+`vantage`). `ARCHITECTURE.md` explains why the swap is cheap; `serve/azure/README.md`
+is the operational runbook.
+
+**Primary — Azure ML managed online endpoint**, custom vLLM container, 1x A100
+(`Standard_NC24ads_A100_v4`), East US.
+
+```bash
+./serve/azure/deploy.sh cost        # see the bill before agreeing to it
+./serve/azure/deploy.sh --hours 3   # zero -> scoring URI -> smoke test
+./serve/azure/deploy.sh teardown    # MANDATORY. stops the billing, then verifies it
+```
+
+`deploy.sh` refuses to create anything billable until the operator types
+`yes-bill`, and prints the SKU, the hourly rate and the projected session cost
+first. `teardown` deletes the deployment and endpoint and then **lists the
+endpoints to confirm the name is gone** — a delete that returned zero is not
+evidence. An idle A100 endpoint bills about ₹320/hour whether or not a request
+ever arrives.
+
+**Secondary — DGX Spark**, on-prem, same image and same flags:
+
+```bash
+./serve/spark/launch.sh --check-image   # resolve the GB10/sm_121 question on the box
+./serve/spark/launch.sh
+```
+
+Numbers from the Spark are hardware-dependent (GB10, unified 128 GB memory pool)
+and are not comparable with the A100 numbers. The script says so and labels its
+output accordingly.
+
+GPU memory is captured by having `start_server.sh` print timestamped
+`nvidia-smi` samples to stdout at named phases, then recovering them with
+`az ml online-deployment get-logs`. The delta across
+`before_first_request_<name>` / `after_first_request_<name>` is the adapter's GPU
+footprint — the measurement that retires the 0.08 GB estimate in
+`bench/economics.py`.
+
+## Unverified items (# CHECK list)
+
+Every item below is a flag, key, class name or behaviour that official
+documentation did **not** settle. Each is marked `# CHECK:` at the exact line in
+the file. An honest gap beats a confident guess: nothing here has been run
+against a GPU or against Azure, and a plausible-looking invented flag would fail
+at the most expensive possible moment.
+
+Doc research date for all of it: **2026-08-24**.
+
+### NeMo / training
+
+| file:line | item |
+| --- | --- |
+| `train/config_meridian.yaml:28`, `train/config_vantage.yaml:28` | NeMo config/model class names for `Llama-3.1-Nemotron-Nano-8B-v1`. Docs publish an `import_ckpt` example only for the Ultra 253B variant. `Llama31NemotronNano8BConfig` is a guess. |
+| `train/config_meridian.yaml:120`, `train/config_vantage.yaml:120` | `ChatDataModule` — described only as "sets a few default arguments on top of `FineTuningDataModule`". Import path and expected JSONL schema unpublished. If it takes `{"messages": [...]}` directly, the conversion in `train_lora.py` should be deleted. |
+| `train/train_lora.py:14` | NeMo container tag. `nvcr.io/nvidia/nemo:25.09.02` matches the docs version whose API is called, but NGC tag listings were not reachable to confirm it is current. |
+| `train/train_lora.py:191` | How `FineTuningDataModule` wraps `input` in the model's chat template. If training and serving disagree on prompt shape, the separation number is quietly low with no error. |
+| `train/train_lora.py:354`, `train/train_lora.py:449` | Same class-name gap as above, at the call site. The script refuses to run on an unresolvable name rather than substituting one. |
+| `train/train_lora.py:429` | Seed pinning. NeMo 2.x documents no seed argument on `llm.finetune` or `nl.Trainer`; `seed_everything` is used, but whether it reaches Megatron's data sampler and parallel RNG is unconfirmed. Treat same-seed runs as reproducible-ish, not bit-identical. |
+| `train/convert_to_hf.py:36` | Whether a supported command-line NeMo exporter exists. Docs show the Python API (`llm.export_ckpt(target='hf-peft')`) only. |
+| `train/train_lora_hf.py:317` | `assistant_only_loss` needs a chat template containing `{% generation %}` markers, auto-patched by TRL only "for known model families (e.g. Qwen3)". Whether the Nemotron Nano template has them is unverified, so the flag is off by default. |
+
+### Azure ML / serving
+
+| file:line | item |
+| --- | --- |
+| `serve/azure/environment.yaml:36` | **The big one.** What literal path the container receives when a client POSTs to the public scoring URI (which ends in `/score`), and whether a client may address `/v1/chat/completions` on it directly. Neither is stated in the Azure docs. `deploy.sh` probes both against the live endpoint and prints which answered. |
+| `serve/azure/deployment.yaml:32` | No documented way to mount a raw Azure Blob container into a *managed* online deployment; datastore mounting is documented for jobs. Registered model asset is used instead. Verified alternative for hot-swapping adapters: vLLM's `/v1/load_lora_adapter`. |
+| `serve/azure/deployment.yaml:166` | No documented **total** startup budget for a managed online deployment — only per-probe settings. Azure ML may impose its own provisioning timeout, which would kill a container mid-download of the 16 GB base model. |
+| `serve/azure/deploy.sh:100` | Exact `azureml://datastores/...` URI form accepted by an inline model `path` for a non-default storage account. Registering from a local folder is the verified path and is the default. |
+
+### DGX Spark
+
+| file:line | item |
+| --- | --- |
+| `serve/spark/launch.sh:51` | Whether any **pinned, reproducible** vLLM tag supports GB10/`sm_121`. `vllm/vllm-openai` does publish aarch64 tags (`v0.27.1-aarch64`, verified on Docker Hub), but those are CUDA 12.9 while GB10 wants CUDA 13. The official vLLM DGX Spark post recommends `cu130-nightly` and warns it is "a compatibility track rather than a reproducible pin". |
+| `serve/spark/launch.sh:60`, `:80` | `DEFAULT_IMAGE` is therefore a moving nightly. Override `IMAGE` with a pinned digest for any published number. `--check-image` resolves this on the box: it pulls the tag, prints the digest, the architecture, the CUDA/torch build and the `sm_` capability vLLM sees. |
+
+### Carried over from earlier stages
+
+| file:line | item |
+| --- | --- |
+| `data/generate.py:37` | Default generator model id `claude-sonnet-5`. |
+| `bench/run_matrix.py:171`, `:179`, `:183` | Load driver is a stdlib fallback; genai-perf or vLLM's `benchmark_serving.py` replaces it at Stage 3. |
+
+### What *was* verified
+
+Listed so the CHECK list above is read as the exception, not the rule. Every
+one of these was confirmed against the official documentation on 2026-08-24:
+
+- **vLLM flags** — `--enable-lora`, `--max-lora-rank` (default 16), `--max-loras`
+  ("Max number of LoRAs in a single batch", default 1), `--max-cpu-loras`
+  ("Must be >= than `max_loras`"), `--served-model-name`, `--gpu-memory-utilization`
+  (default 0.92), `--max-model-len`, `--download-dir`, `--port` (default 8000),
+  `--host`, `--api-key`, `--max-num-seqs`
+  ([engine args](https://docs.vllm.ai/en/latest/configuration/engine_args.html),
+  [serve CLI](https://docs.vllm.ai/en/latest/cli/serve.html));
+  `--lora-modules` in both `name=path` and JSON forms, adapter selection via the
+  request's `model` field, and the runtime LoRA API
+  ([LoRA docs](https://docs.vllm.ai/en/latest/features/lora.html)).
+- **vLLM `/health`** as a documented endpoint, used for both probes
+  ([online serving](https://docs.vllm.ai/en/latest/serving/online_serving/)).
+- **`vllm serve` takes the model POSITIONALLY.** `--model` is rejected with
+  "you should provide the model as a positional argument", and is slated for
+  removal ([PR 16691](https://github.com/vllm-project/vllm/pull/16691)). This is
+  a deviation from the task spec, and a deliberate one.
+- **vLLM image** `vllm/vllm-openai:v0.27.1`, pushed 2026-08-11
+  ([Docker Hub tags](https://hub.docker.com/r/vllm/vllm-openai/tags)); upstream
+  `ENTRYPOINT ["vllm", "serve"]`
+  ([Dockerfile](https://github.com/vllm-project/vllm/blob/main/docker/Dockerfile)).
+- **Azure ML endpoint YAML** — `$schema`, `name` (required), `auth_mode`
+  (`key` | `aml_token` | `aad_token`)
+  ([reference](https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-endpoint-online)).
+- **Azure ML deployment YAML** — `endpoint_name`, `model`, `model_mount_path`,
+  `environment`, `instance_type`, `instance_count`, `environment_variables`,
+  `request_settings.request_timeout_ms` (**max 180000 ms**, default 5000),
+  `max_concurrent_requests_per_instance` (default 1), `liveness_probe` /
+  `readiness_probe` (`initial_delay`, `period`, `timeout`, `success_threshold`,
+  `failure_threshold` — and **no** `path`/`port` keys),
+  `egress_public_network_access`, `app_insights_enabled`
+  ([reference](https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-deployment-managed-online)).
+- **Azure ML environment YAML** — `image` / `build.path` / `build.dockerfile_path`,
+  `os_type`, and `inference_config.{liveness,readiness,scoring}_route.{path,port}`
+  ([reference](https://learn.microsoft.com/en-us/azure/machine-learning/reference-yaml-environment)),
+  with `inference_config` required for BYOC
+  ([custom container how-to](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-custom-container)).
+- **NeMo 2.x** — `llm.peft.LoRA(dim=, alpha=, dropout=, target_modules=)` with
+  rank spelled `dim`; NeMo module names `linear_qkv` / `linear_proj` /
+  `linear_fc1` / `linear_fc2`; `CanonicalLoRA` as the HF-equivalent form;
+  `FineTuningDataModule` expecting `{"input", "output"}` rows in a
+  `training.jsonl` / `validation.jsonl` / `test.jsonl` root;
+  `MegatronMixedPrecision(precision="bf16-mixed")`; `MegatronOptimizerModule` +
+  `CosineAnnealingScheduler`; `llm.export_ckpt(target='hf-peft')`; and that
+  NeMo 2.0 replaced YAML config with Python
+  ([PEFT guide](https://docs.nvidia.com/nemo-framework/user-guide/25.09/sft_peft/peft_nemo2.html)).
+- **TRL / PEFT** — `SFTTrainer(model=, args=, train_dataset=, processing_class=,
+  peft_config=)`; `SFTConfig` fields including `max_length` (**not**
+  `max_seq_length`), `lr_scheduler_type`, `assistant_only_loss`; conversational
+  `{"messages": [...]}` datasets get the chat template applied automatically
+  ([TRL](https://huggingface.co/docs/trl/en/sft_trainer)); `LoraConfig(r=,
+  lora_alpha=, lora_dropout=, target_modules=, bias=, task_type="CAUSAL_LM")`
+  writing `adapter_config.json` + `adapter_model.safetensors`
+  ([PEFT](https://huggingface.co/docs/peft/en/package_reference/lora)).
+- **NIM** — `NIM_PEFT_SOURCE`, the `<dir>/<adapter>/adapter_config.json` layout,
+  `NIM_PEFT_REFRESH_INTERVAL`, and that NIM passes `--enable-lora`, `--max-loras`,
+  `--max-cpu-loras`, `--max-lora-rank` through to vLLM
+  ([NIM LoRA](https://docs.nvidia.com/nim/large-language-models/latest/advanced-use-cases/finetune-lora.html)).
 
 ## Finding from Stage 0: schema alone is not enough
 

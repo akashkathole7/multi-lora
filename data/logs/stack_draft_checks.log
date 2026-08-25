@@ -1,0 +1,126 @@
+================================================================
+Stage 2 draft: syntax / parse / guardrail checks
+date: 2026-08-25T05:01:58Z
+python: Python 3.12.3
+================================================================
+
+--- 1. py_compile on every new .py ---
+  PASS  train/train_lora.py
+  PASS  train/train_lora_hf.py
+  PASS  train/convert_to_hf.py
+
+--- 1b. py_compile on every .py in the repo (regression) ---
+  PASS  all tracked + new .py files compile
+
+--- 2. bash -n on every .sh ---
+  PASS  scripts/check_no_model_imports.sh
+  PASS  serve/azure/start_server.sh
+  PASS  serve/azure/deploy.sh
+  PASS  serve/spark/launch.sh
+
+--- 3. YAML parse on every .yaml (PyYAML 6.0.3) ---
+  PASS  train/config_meridian.yaml  top-level keys: ['tenant', 'base_model', 'peft', 'trainer', 'optim', 'data', 'output']
+  PASS  train/config_vantage.yaml  top-level keys: ['tenant', 'base_model', 'peft', 'trainer', 'optim', 'data', 'output']
+  PASS  serve/azure/deployment.yaml  top-level keys: ['$schema', 'name', 'endpoint_name', 'model', 'model_mount_path', 'environment', 'instance_type', 'instance_count', 'environment_variables', 'request_settings', 'readiness_probe', 'liveness_probe', 'egress_public_network_access', 'app_insights_enabled', 'tags']
+  PASS  serve/azure/endpoint.yaml  top-level keys: ['$schema', 'name', 'description', 'auth_mode', 'tags']
+  PASS  serve/azure/environment.yaml  top-level keys: ['$schema', 'name', 'description', 'os_type', 'build', 'inference_config', 'tags']
+
+--- 4. YAML schema spot-check: the values that cost money if wrong ---
+  PASS  endpoint auth_mode is 'key'
+  PASS  instance_type is the A100 SKU
+  PASS  instance_count is 1
+  PASS  request_timeout_ms <= documented 180000
+  PASS  probes carry no path/port key
+  PASS  scoring_route -> vLLM chat completions
+  PASS  liveness_route -> vLLM /health
+  PASS  readiness_route -> vLLM /health
+  PASS  all routes on port 8000
+  PASS  MAX_LORA_RANK matches training dim 16
+  PASS  MAX_CPU_LORAS >= MAX_LORAS (vLLM rule)
+
+--- 5. training configs agree with each other and with the spec ---
+  PASS  tenants are distinct
+  PASS  rank (dim) is 16 in both
+  PASS  alpha is 32 in both
+  PASS  dropout is 0.05 in both
+  PASS  7 target modules, as spec'd
+  PASS  seed pinned to 1234
+  PASS  bf16
+  PASS  3 epochs
+  PASS  lr 1e-4 cosine
+  PASS  global batch 8
+  PASS  seq len 2048
+  PASS  data paths point per-tenant
+  PASS  base model is the fixed one
+
+--- 6. both training routes resolve to the SAME hyperparameters ---
+  PASS  meridian rank: NeMo=16 HF=16
+  PASS  meridian alpha: NeMo=32 HF=32
+  PASS  meridian dropout: NeMo=0.05 HF=0.05
+  PASS  meridian seed: NeMo=1234 HF=1234
+  PASS  meridian epochs: NeMo=3 HF=3
+  PASS  meridian lr: NeMo=0.0001 HF=0.0001
+  PASS  meridian seq len: NeMo=2048 HF=2048
+  PASS  meridian global batch: config=8 HF effective=8
+  PASS  meridian module translation: 7 HF -> ['linear_qkv', 'linear_proj', 'linear_fc1', 'linear_fc2']
+  PASS  vantage rank: NeMo=16 HF=16
+  PASS  vantage alpha: NeMo=32 HF=32
+  PASS  vantage dropout: NeMo=0.05 HF=0.05
+  PASS  vantage seed: NeMo=1234 HF=1234
+  PASS  vantage epochs: NeMo=3 HF=3
+  PASS  vantage lr: NeMo=0.0001 HF=0.0001
+  PASS  vantage seq len: NeMo=2048 HF=2048
+  PASS  vantage global batch: config=8 HF effective=8
+  PASS  vantage module translation: 7 HF -> ['linear_qkv', 'linear_proj', 'linear_fc1', 'linear_fc2']
+
+--- 7. CLI surfaces answer --help with exit 0 ---
+  PASS  train/train_lora.py --help
+  PASS  train/train_lora_hf.py --help
+  PASS  train/convert_to_hf.py --help
+  PASS  deploy.sh cost
+
+--- 8. cost guardrail refuses to bill without confirmation ---
+  PASS  deploy aborts before the guardrail: adapters missing (nothing billable reached)
+
+--- 9. model-free guardrail (scripts/check_no_model_imports.sh) ---
+guardrail: checking data/verifier.py eval for model-client imports
+guardrail: PASS - no model-client imports in data/verifier.py eval
+
+--- 10. no secrets or subscription ids hardcoded outside the parameterised default ---
+  PASS  subscription id appears only as the SUBSCRIPTION_ID env default
+
+--- 11. CHECK marks present and countable ---
+  108 '# CHECK:' comment lines across the repo; enumerated in README.md
+
+================================================================
+checks complete
+================================================================
+
+--- 8b. guardrail re-test WITH adapters staged (so it reaches the prompt) ---
+        PROJECTED SESSION COST  $11.02   (~Rs 959)
+      deploy: FATAL not an interactive terminal and ASSUME_YES=yes-bill is not set; refusing to bill
+  PASS  guardrail printed the cost, then refused to bill non-interactively
+
+--- 8c. wrong confirmation phrase aborts, correct one is required ---
+  FAIL  wrong phrase did not abort
+      serve/azure/deploy.sh teardown
+
+  you will be billed ~Rs 320 per hour, indefinitely.
+==========================================================================
+deploy: FATAL not an interactive terminal and ASSUME_YES=yes-bill is not set; refusing to bill
+  NOTE 8c above asserted the wrong thing: a heredoc is not a TTY either, so
+       the non-interactive refusal fires FIRST. That is stricter, not weaker.
+       Re-run under a real pty to exercise the typed-confirmation path:
+
+--- 8d. interactive path under a pty ---
+  PASS  typed 'yes' -> aborted, nothing created, no charge
+  PASS  typed 'yes-bill' -> proceeds (then stops at the stubbed az binary)
+
+--- 12. existing test suite (must still pass unchanged) ---
+....................                                                     [100%]
+20 passed in 11.36s
+
+--- 13. restore committed self-test logs (tests overwrite them; known quirk) ---
+  restored bench/logs eval/logs data/logs reports
+      ?? data/logs/stack_draft_checks.log
+  (only the new stack_draft_checks.log should remain, as an untracked add)
