@@ -551,3 +551,9 @@ policy does not block; SP is deleted at project teardown).
 **Evidence.** `scratchpad devmatrix_stream.log` (vLLM `non-default args` line),
 cancelled job `yellow_dinner_p5pg2mhblp` in the workspace, fixed
 `train/azureml/job_devmatrix.yaml`.
+
+*(Correction, 2026-08-25 later: the cancel in this entry never executed — the
+command carried `--yes`, which this CLI version rejects, and the error scrolled
+past unverified. The job kept the node ~70 more minutes until a verified cancel
+landed. True cost of the bug: ~3.2h A100 ≈ $11.7, not $7.3. Lesson applied: a
+state-changing command is only done when the state read back changed.)*
