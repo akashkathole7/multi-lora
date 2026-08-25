@@ -1,0 +1,73 @@
+{
+  "run_id": "20260825T103026225Z",
+  "sealed": false,
+  "raw_log": "outputs/eval_logs/separation_raw_20260825T103026225Z.jsonl",
+  "goals_file": "eval/dev_goals.jsonl",
+  "goals_sha256": "c972d37e6e114943d93af945d55c1f71d6d62052485b2db6679b13b8101d155a",
+  "n_goals": 100,
+  "endpoint": "http://127.0.0.1:8000/v1/chat/completions",
+  "arms": [
+    "base",
+    "meridian",
+    "vantage"
+  ],
+  "served_names": {
+    "base": "base",
+    "meridian": "meridian",
+    "vantage": "vantage"
+  },
+  "max_concurrency": 4,
+  "system_message": "detailed thinking off",
+  "wall_time_s": 627.23,
+  "base_leak_warning": false,
+  "matrix": {
+    "base": {
+      "meridian_pass_rate": 0.0,
+      "vantage_pass_rate": 0.0,
+      "n": 100,
+      "errors": 0,
+      "meridian_pass_count": 0,
+      "vantage_pass_count": 0
+    },
+    "meridian": {
+      "meridian_pass_rate": 1.0,
+      "vantage_pass_rate": 0.0,
+      "n": 100,
+      "errors": 0,
+      "meridian_pass_count": 100,
+      "vantage_pass_count": 0
+    },
+    "vantage": {
+      "meridian_pass_rate": 0.0,
+      "vantage_pass_rate": 0.98,
+      "n": 100,
+      "errors": 0,
+      "meridian_pass_count": 0,
+      "vantage_pass_count": 98
+    }
+  },
+  "base": {
+    "meridian_pass_rate": 0.0,
+    "vantage_pass_rate": 0.0,
+    "n": 100,
+    "errors": 0,
+    "meridian_pass_count": 0,
+    "vantage_pass_count": 0
+  },
+  "meridian": {
+    "meridian_pass_rate": 1.0,
+    "vantage_pass_rate": 0.0,
+    "n": 100,
+    "errors": 0,
+    "meridian_pass_count": 100,
+    "vantage_pass_count": 0
+  },
+  "vantage": {
+    "meridian_pass_rate": 0.0,
+    "vantage_pass_rate": 0.98,
+    "n": 100,
+    "errors": 0,
+    "meridian_pass_count": 0,
+    "vantage_pass_count": 98
+  }
+}

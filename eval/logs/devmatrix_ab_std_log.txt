@@ -1,0 +1,345 @@
+memory.used [MiB], memory.total [MiB]
+0 MiB, 81920 MiB
+server healthy
+memory.used [MiB], memory.total [MiB]
+75730 MiB, 81920 MiB
+separation: env var MULTILORA_API_KEY is unset or empty; sending no Authorization header. Fine against a local mock, wrong against Azure.
+separation: run 20260825T103026225Z
+separation: endpoint http://127.0.0.1:8000/v1/chat/completions
+separation: goals eval/dev_goals.jsonl (100 goals)
+separation: arms base->base, meridian->meridian, vantage->vantage
+separation: concurrency 4
+separation: raw log outputs/eval_logs/separation_raw_20260825T103026225Z.jsonl
+separation: [   1/300] base      goal 702   http 200 1.510s
+separation: [   2/300] base      goal 701   http 200 2.530s
+separation: [   3/300] base      goal 703   http 200 4.669s
+separation: [   4/300] base      goal 704   http 200 4.909s
+separation: [   5/300] base      goal 706   http 200 3.535s
+separation: [   6/300] base      goal 705   http 200 4.647s
+separation: [   7/300] base      goal 709   http 200 1.303s
+separation: [   8/300] base      goal 710   http 200 4.146s
+separation: [   9/300] base      goal 708   http 200 6.304s
+separation: [  10/300] base      goal 707   http 200 6.843s
+separation: [  11/300] base      goal 711   http 200 6.012s
+separation: [  12/300] base      goal 714   http 200 2.549s
+separation: [  13/300] base      goal 712   http 200 4.732s
+separation: [  14/300] base      goal 713   http 200 4.231s
+separation: [  15/300] base      goal 715   http 200 4.226s
+separation: [  16/300] base      goal 717   http 200 3.807s
+separation: [  17/300] base      goal 716   http 200 4.862s
+separation: [  18/300] base      goal 721   http 200 1.042s
+separation: [  19/300] base      goal 718   http 200 5.394s
+separation: [  20/300] base      goal 719   http 200 4.061s
+separation: [  21/300] base      goal 723   http 200 1.768s
+separation: [  22/300] base      goal 720   http 200 4.277s
+separation: [  23/300] base      goal 722   http 200 6.338s
+separation: [  24/300] base      goal 724   http 200 5.102s
+separation: [  25/300] base      goal 725   http 200 4.469s
+separation: [  26/300] base      goal 726   http 200 4.457s
+separation: [  27/300] base      goal 728   http 200 3.523s
+separation: [  28/300] base      goal 727   http 200 4.274s
+separation: [  29/300] base      goal 730   http 200 3.603s
+separation: [  30/300] base      goal 729   http 200 4.330s
+separation: [  31/300] base      goal 732   http 200 2.142s
+separation: [  32/300] base      goal 733   http 200 2.355s
+separation: [  33/300] base      goal 731   http 200 4.884s
+separation: [  34/300] base      goal 734   http 200 4.067s
+separation: [  35/300] base      goal 735   http 200 3.436s
+separation: [  36/300] base      goal 736   http 200 3.808s
+separation: [  37/300] base      goal 738   http 200 2.617s
+separation: [  38/300] base      goal 737   http 200 5.486s
+separation: [  39/300] base      goal 740   http 200 3.855s
+separation: [  40/300] base      goal 739   http 200 6.020s
+separation: [  41/300] base      goal 742   http 200 2.725s
+separation: [  42/300] base      goal 745   http 200 1.396s
+separation: [  43/300] base      goal 746   http 200 1.044s
+separation: [  44/300] base      goal 741   http 200 8.982s
+separation: [  45/300] base      goal 743   http 200 5.924s
+separation: [  46/300] base      goal 744   http 200 4.977s
+separation: [  47/300] base      goal 750   http 200 1.375s
+separation: [  48/300] base      goal 749   http 200 4.318s
+separation: [  49/300] base      goal 751   http 200 4.210s
+separation: [  50/300] base      goal 747   http 200 7.832s
+separation: [  51/300] base      goal 748   http 200 7.382s
+separation: [  52/300] base      goal 752   http 200 3.527s
+separation: [  53/300] base      goal 755   http 200 1.248s
+separation: [  54/300] base      goal 753   http 200 3.105s
+separation: [  55/300] base      goal 754   http 200 2.331s
+separation: [  56/300] base      goal 756   http 200 4.657s
+separation: [  57/300] base      goal 759   http 200 5.291s
+separation: [  58/300] base      goal 758   http 200 5.738s
+separation: [  59/300] base      goal 757   http 200 6.525s
+separation: [  60/300] base      goal 761   http 200 1.298s
+separation: [  61/300] base      goal 760   http 200 4.585s
+separation: [  62/300] base      goal 763   http 200 4.235s
+separation: [  63/300] base      goal 764   http 200 4.001s
+separation: [  64/300] base      goal 762   http 200 5.796s
+separation: [  65/300] base      goal 765   http 200 3.982s
+separation: [  66/300] base      goal 767   http 200 3.876s
+separation: [  67/300] base      goal 768   http 200 3.604s
+separation: [  68/300] base      goal 766   http 200 4.734s
+separation: [  69/300] base      goal 769   http 200 3.924s
+separation: [  70/300] base      goal 773   http 200 1.832s
+separation: [  71/300] base      goal 770   http 200 3.642s
+separation: [  72/300] base      goal 772   http 200 3.005s
+separation: [  73/300] base      goal 771   http 200 5.929s
+separation: [  74/300] base      goal 775   http 200 3.651s
+separation: [  75/300] base      goal 774   http 200 3.974s
+separation: [  76/300] base      goal 776   http 200 4.388s
+separation: [  77/300] base      goal 778   http 200 1.115s
+separation: [  78/300] base      goal 781   http 200 3.861s
+separation: [  79/300] base      goal 779   http 200 4.852s
+separation: [  80/300] base      goal 777   http 200 6.197s
+separation: [  81/300] base      goal 782   http 200 1.399s
+separation: [  82/300] base      goal 780   http 200 6.873s
+separation: [  83/300] base      goal 786   http 200 0.986s
+separation: [  84/300] base      goal 784   http 200 5.171s
+separation: [  85/300] base      goal 783   http 200 5.981s
+separation: [  86/300] base      goal 785   http 200 4.668s
+separation: [  87/300] base      goal 789   http 200 2.345s
+separation: [  88/300] base      goal 787   http 200 6.285s
+separation: [  89/300] base      goal 790   http 200 4.229s
+separation: [  90/300] base      goal 788   http 200 7.183s
+separation: [  91/300] base      goal 791   http 200 4.769s
+separation: [  92/300] base      goal 792   http 200 3.477s
+separation: [  93/300] base      goal 795   http 200 1.304s
+separation: [  94/300] base      goal 793   http 200 6.137s
+separation: [  95/300] base      goal 794   http 200 3.927s
+separation: [  96/300] base      goal 798   http 200 1.193s
+separation: [  97/300] base      goal 796   http 200 4.720s
+separation: [  98/300] base      goal 797   http 200 6.040s
+separation: [  99/300] base      goal 799   http 200 5.588s
+separation: [ 100/300] base      goal 800   http 200 4.786s
+separation: [ 101/300] meridian  goal 701   http 200 11.371s
+separation: [ 102/300] meridian  goal 702   http 200 12.658s
+separation: [ 103/300] meridian  goal 703   http 200 11.597s
+separation: [ 104/300] meridian  goal 704   http 200 11.559s
+separation: [ 105/300] meridian  goal 705   http 200 11.478s
+separation: [ 106/300] meridian  goal 708   http 200 10.430s
+separation: [ 107/300] meridian  goal 706   http 200 11.421s
+separation: [ 108/300] meridian  goal 707   http 200 11.219s
+separation: [ 109/300] meridian  goal 709   http 200 10.986s
+separation: [ 110/300] meridian  goal 710   http 200 11.805s
+separation: [ 111/300] meridian  goal 712   http 200 11.373s
+separation: [ 112/300] meridian  goal 711   http 200 12.543s
+separation: [ 113/300] meridian  goal 713   http 200 12.413s
+separation: [ 114/300] meridian  goal 714   http 200 11.528s
+separation: [ 115/300] meridian  goal 715   http 200 11.475s
+separation: [ 116/300] meridian  goal 716   http 200 12.302s
+separation: [ 117/300] meridian  goal 717   http 200 12.512s
+separation: [ 118/300] meridian  goal 719   http 200 10.727s
+separation: [ 119/300] meridian  goal 718   http 200 13.291s
+separation: [ 120/300] meridian  goal 720   http 200 12.152s
+separation: [ 121/300] meridian  goal 721   http 200 12.066s
+separation: [ 122/300] meridian  goal 722   http 200 11.307s
+separation: [ 123/300] meridian  goal 723   http 200 10.887s
+separation: [ 124/300] meridian  goal 724   http 200 12.114s
+separation: [ 125/300] meridian  goal 725   http 200 9.958s
+separation: [ 126/300] meridian  goal 726   http 200 12.405s
+separation: [ 127/300] meridian  goal 727   http 200 11.850s
+separation: [ 128/300] meridian  goal 728   http 200 11.623s
+separation: [ 129/300] meridian  goal 729   http 200 12.452s
+separation: [ 130/300] meridian  goal 730   http 200 11.327s
+separation: [ 131/300] meridian  goal 731   http 200 10.924s
+separation: [ 132/300] meridian  goal 732   http 200 12.232s
+separation: [ 133/300] meridian  goal 733   http 200 12.182s
+separation: [ 134/300] meridian  goal 734   http 200 11.864s
+separation: [ 135/300] meridian  goal 735   http 200 11.824s
+separation: [ 136/300] meridian  goal 736   http 200 11.191s
+separation: [ 137/300] meridian  goal 737   http 200 12.215s
+separation: [ 138/300] meridian  goal 738   http 200 12.015s
+separation: [ 139/300] meridian  goal 739   http 200 11.494s
+separation: [ 140/300] meridian  goal 740   http 200 11.910s
+separation: [ 141/300] meridian  goal 741   http 200 11.789s
+separation: [ 142/300] meridian  goal 742   http 200 10.676s
+separation: [ 143/300] meridian  goal 743   http 200 11.836s
+separation: [ 144/300] meridian  goal 744   http 200 11.610s
+separation: [ 145/300] meridian  goal 745   http 200 11.018s
+separation: [ 146/300] meridian  goal 746   http 200 11.489s
+separation: [ 147/300] meridian  goal 747   http 200 11.961s
+separation: [ 148/300] meridian  goal 748   http 200 11.856s
+separation: [ 149/300] meridian  goal 749   http 200 12.506s
+separation: [ 150/300] meridian  goal 750   http 200 12.157s
+separation: [ 151/300] meridian  goal 751   http 200 12.037s
+separation: [ 152/300] meridian  goal 752   http 200 12.118s
+separation: [ 153/300] meridian  goal 753   http 200 12.720s
+separation: [ 154/300] meridian  goal 754   http 200 13.055s
+separation: [ 155/300] meridian  goal 755   http 200 11.504s
+separation: [ 156/300] meridian  goal 756   http 200 11.578s
+separation: [ 157/300] meridian  goal 757   http 200 10.615s
+separation: [ 158/300] meridian  goal 758   http 200 11.981s
+separation: [ 159/300] meridian  goal 759   http 200 11.660s
+separation: [ 160/300] meridian  goal 760   http 200 11.618s
+separation: [ 161/300] meridian  goal 761   http 200 10.429s
+separation: [ 162/300] meridian  goal 763   http 200 9.425s
+separation: [ 163/300] meridian  goal 762   http 200 12.323s
+separation: [ 164/300] meridian  goal 764   http 200 11.941s
+separation: [ 165/300] meridian  goal 765   http 200 10.934s
+separation: [ 166/300] meridian  goal 766   http 200 10.992s
+separation: [ 167/300] meridian  goal 767   http 200 10.823s
+separation: [ 168/300] meridian  goal 768   http 200 12.288s
+separation: [ 169/300] meridian  goal 769   http 200 11.269s
+separation: [ 170/300] meridian  goal 770   http 200 10.280s
+separation: [ 171/300] meridian  goal 771   http 200 11.920s
+separation: [ 172/300] meridian  goal 772   http 200 12.041s
+separation: [ 173/300] meridian  goal 773   http 200 11.095s
+separation: [ 174/300] meridian  goal 774   http 200 12.072s
+separation: [ 175/300] meridian  goal 775   http 200 11.176s
+separation: [ 176/300] meridian  goal 776   http 200 12.527s
+separation: [ 177/300] meridian  goal 777   http 200 10.820s
+separation: [ 178/300] meridian  goal 778   http 200 10.415s
+separation: [ 179/300] meridian  goal 779   http 200 12.548s
+separation: [ 180/300] meridian  goal 780   http 200 11.894s
+separation: [ 181/300] meridian  goal 781   http 200 11.198s
+separation: [ 182/300] meridian  goal 782   http 200 12.697s
+separation: [ 183/300] meridian  goal 783   http 200 10.694s
+separation: [ 184/300] meridian  goal 784   http 200 10.857s
+separation: [ 185/300] meridian  goal 785   http 200 11.071s
+separation: [ 186/300] meridian  goal 786   http 200 12.308s
+separation: [ 187/300] meridian  goal 787   http 200 11.986s
+separation: [ 188/300] meridian  goal 789   http 200 11.534s
+separation: [ 189/300] meridian  goal 788   http 200 11.985s
+separation: [ 190/300] meridian  goal 790   http 200 11.198s
+separation: [ 191/300] meridian  goal 791   http 200 11.582s
+separation: [ 192/300] meridian  goal 793   http 200 11.482s
+separation: [ 193/300] meridian  goal 792   http 200 11.639s
+separation: [ 194/300] meridian  goal 794   http 200 11.112s
+separation: [ 195/300] meridian  goal 795   http 200 12.394s
+separation: [ 196/300] meridian  goal 797   http 200 10.787s
+separation: [ 197/300] meridian  goal 796   http 200 11.145s
+separation: [ 198/300] meridian  goal 798   http 200 11.575s
+separation: [ 199/300] meridian  goal 799   http 200 10.567s
+separation: [ 200/300] vantage   goal 701   http 200 9.908s
+separation: [ 201/300] meridian  goal 800   http 200 12.124s
+separation: [ 202/300] vantage   goal 702   http 200 9.352s
+separation: [ 203/300] vantage   goal 703   http 200 8.727s
+separation: [ 204/300] vantage   goal 704   http 200 9.569s
+separation: [ 205/300] vantage   goal 705   http 200 8.947s
+separation: [ 206/300] vantage   goal 706   http 200 8.441s
+separation: [ 207/300] vantage   goal 707   http 200 8.679s
+separation: [ 208/300] vantage   goal 708   http 200 8.863s
+separation: [ 209/300] vantage   goal 709   http 200 8.437s
+separation: [ 210/300] vantage   goal 710   http 200 8.982s
+separation: [ 211/300] vantage   goal 711   http 200 8.851s
+separation: [ 212/300] vantage   goal 713   http 200 8.585s
+separation: [ 213/300] vantage   goal 712   http 200 9.631s
+separation: [ 214/300] vantage   goal 714   http 200 8.430s
+separation: [ 215/300] vantage   goal 715   http 200 9.305s
+separation: [ 216/300] vantage   goal 717   http 200 7.742s
+separation: [ 217/300] vantage   goal 718   http 200 8.569s
+separation: [ 218/300] vantage   goal 716   http 200 9.778s
+separation: [ 219/300] vantage   goal 719   http 200 9.545s
+separation: [ 220/300] vantage   goal 720   http 200 9.229s
+separation: [ 221/300] vantage   goal 721   http 200 9.095s
+separation: [ 222/300] vantage   goal 722   http 200 9.653s
+separation: [ 223/300] vantage   goal 723   http 200 9.015s
+separation: [ 224/300] vantage   goal 724   http 200 9.052s
+separation: [ 225/300] vantage   goal 725   http 200 8.599s
+separation: [ 226/300] vantage   goal 726   http 200 8.983s
+separation: [ 227/300] vantage   goal 727   http 200 9.691s
+separation: [ 228/300] vantage   goal 728   http 200 9.002s
+separation: [ 229/300] vantage   goal 729   http 200 9.135s
+separation: [ 230/300] vantage   goal 730   http 200 8.816s
+separation: [ 231/300] vantage   goal 731   http 200 8.973s
+separation: [ 232/300] vantage   goal 732   http 200 9.212s
+separation: [ 233/300] vantage   goal 733   http 200 9.253s
+separation: [ 234/300] vantage   goal 734   http 200 9.399s
+separation: [ 235/300] vantage   goal 735   http 200 8.680s
+separation: [ 236/300] vantage   goal 736   http 200 9.650s
+separation: [ 237/300] vantage   goal 737   http 200 9.398s
+separation: [ 238/300] vantage   goal 738   http 200 9.306s
+separation: [ 239/300] vantage   goal 739   http 200 8.948s
+separation: [ 240/300] vantage   goal 740   http 200 9.602s
+separation: [ 241/300] vantage   goal 741   http 200 9.736s
+separation: [ 242/300] vantage   goal 742   http 200 9.510s
+separation: [ 243/300] vantage   goal 743   http 200 8.709s
+separation: [ 244/300] vantage   goal 744   http 200 8.813s
+separation: [ 245/300] vantage   goal 745   http 200 9.691s
+separation: [ 246/300] vantage   goal 746   http 200 9.041s
+separation: [ 247/300] vantage   goal 747   http 200 8.816s
+separation: [ 248/300] vantage   goal 748   http 200 9.186s
+separation: [ 249/300] vantage   goal 750   http 200 8.568s
+separation: [ 250/300] vantage   goal 749   http 200 8.844s
+separation: [ 251/300] vantage   goal 751   http 200 9.665s
+separation: [ 252/300] vantage   goal 752   http 200 9.096s
+separation: [ 253/300] vantage   goal 753   http 200 8.550s
+separation: [ 254/300] vantage   goal 754   http 200 8.576s
+separation: [ 255/300] vantage   goal 755   http 200 8.069s
+separation: [ 256/300] vantage   goal 756   http 200 9.026s
+separation: [ 257/300] vantage   goal 758   http 200 8.743s
+separation: [ 258/300] vantage   goal 757   http 200 9.124s
+separation: [ 259/300] vantage   goal 759   http 200 9.346s
+separation: [ 260/300] vantage   goal 760   http 200 9.251s
+separation: [ 261/300] vantage   goal 761   http 200 9.104s
+separation: [ 262/300] vantage   goal 762   http 200 9.449s
+separation: [ 263/300] vantage   goal 763   http 200 9.422s
+separation: [ 264/300] vantage   goal 764   http 200 9.521s
+separation: [ 265/300] vantage   goal 765   http 200 8.975s
+separation: [ 266/300] vantage   goal 766   http 200 8.829s
+separation: [ 267/300] vantage   goal 767   http 200 8.722s
+separation: [ 268/300] vantage   goal 768   http 200 9.148s
+separation: [ 269/300] vantage   goal 769   http 200 9.201s
+separation: [ 270/300] vantage   goal 770   http 200 9.228s
+separation: [ 271/300] vantage   goal 771   http 200 9.667s
+separation: [ 272/300] vantage   goal 772   http 200 8.962s
+separation: [ 273/300] vantage   goal 773   http 200 8.988s
+separation: [ 274/300] vantage   goal 774   http 200 9.612s
+separation: [ 275/300] vantage   goal 775   http 200 8.788s
+separation: [ 276/300] vantage   goal 777   http 200 8.714s
+separation: [ 277/300] vantage   goal 776   http 200 9.470s
+separation: [ 278/300] vantage   goal 778   http 200 9.559s
+separation: [ 279/300] vantage   goal 779   http 200 9.002s
+separation: [ 280/300] vantage   goal 780   http 200 9.322s
+separation: [ 281/300] vantage   goal 782   http 200 8.467s
+separation: [ 282/300] vantage   goal 781   http 200 9.911s
+separation: [ 283/300] vantage   goal 783   http 200 8.829s
+separation: [ 284/300] vantage   goal 784   http 200 9.801s
+separation: [ 285/300] vantage   goal 785   http 200 9.016s
+separation: [ 286/300] vantage   goal 786   http 200 9.135s
+separation: [ 287/300] vantage   goal 787   http 200 9.016s
+separation: [ 288/300] vantage   goal 789   http 200 8.837s
+separation: [ 289/300] vantage   goal 790   http 200 8.705s
+separation: [ 290/300] vantage   goal 788   http 200 9.344s
+separation: [ 291/300] vantage   goal 791   http 200 8.855s
+separation: [ 292/300] vantage   goal 792   http 200 8.894s
+separation: [ 293/300] vantage   goal 794   http 200 9.060s
+separation: [ 294/300] vantage   goal 793   http 200 9.522s
+separation: [ 295/300] vantage   goal 795   http 200 9.292s
+separation: [ 296/300] vantage   goal 796   http 200 9.198s
+separation: [ 297/300] vantage   goal 797   http 200 9.654s
+separation: [ 298/300] vantage   goal 798   http 200 9.701s
+separation: [ 299/300] vantage   goal 799   http 200 9.491s
+separation: [ 300/300] vantage   goal 800   http 200 9.319s
+
+SEPARATION MATRIX
+source: outputs/eval_logs/separation_raw_20260825T103026225Z.jsonl
+arm       passes Meridian rules  passes Vantage rules  n    errors
+------------------------------------------------------------------
+base      0.0% (0/100)           0.0% (0/100)          100  0     
+meridian  100.0% (100/100)       0.0% (0/100)          100  0     
+vantage   0.0% (0/100)           98.0% (98/100)        100  0     
+
+separation: wrote outputs/eval_logs/separation_matrix_20260825T103026225Z.json
+separation: wall time 627.23s over 300 requests
+memory.used [MiB], memory.total [MiB]
+75730 MiB, 81920 MiB
+(APIServer pid=77) INFO:     127.0.0.1:48080 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO 08-25 10:40:17 [loggers.py:310] Engine 000: Avg prompt throughput: 7.9 tokens/s, Avg generation throughput: 299.5 tokens/s, Running: 3 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.3%, Prefix cache hit rate: 34.1%
+(APIServer pid=77) INFO:     127.0.0.1:48092 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:48100 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:39198 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:39200 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:39182 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO 08-25 10:40:27 [loggers.py:310] Engine 000: Avg prompt throughput: 10.1 tokens/s, Avg generation throughput: 299.3 tokens/s, Running: 4 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.2%, Prefix cache hit rate: 34.4%
+(APIServer pid=77) INFO:     127.0.0.1:39204 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:59780 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:59798 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:59788 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO 08-25 10:40:37 [loggers.py:310] Engine 000: Avg prompt throughput: 5.5 tokens/s, Avg generation throughput: 299.6 tokens/s, Running: 4 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.3%, Prefix cache hit rate: 34.8%
+(APIServer pid=77) INFO:     127.0.0.1:59802 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:50126 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:50128 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:50138 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO 08-25 10:40:47 [loggers.py:310] Engine 000: Avg prompt throughput: 3.2 tokens/s, Avg generation throughput: 270.8 tokens/s, Running: 2 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.2%, Prefix cache hit rate: 34.9%
+(APIServer pid=77) INFO:     127.0.0.1:50144 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=77) INFO:     127.0.0.1:59590 - "POST /v1/chat/completions HTTP/1.1" 200 OK

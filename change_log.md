@@ -557,3 +557,34 @@ command carried `--yes`, which this CLI version rejects, and the error scrolled
 past unverified. The job kept the node ~70 more minutes until a verified cancel
 landed. True cost of the bug: ~3.2h A100 ≈ $11.7, not $7.3. Lesson applied: a
 state-changing command is only done when the state read back changed.)*
+
+## Entry 11 — Stage 2 gate PASSED: dev confusion matrix
+
+**Date:** 2026-08-25
+
+**What.** Trained adapter B (vantage; job `salmon_turtle_qv72f9ndkq`, 12.8 min
+train time, final-epoch loss 0.67, artifact 167,832,240 bytes — identical size
+to adapter A by construction). Ran the combined dev matrix (job
+`sad_line_6gslz8gljq`): one vLLM server, base + both adapters, 3 arms x 100 dev
+goals, deterministic verification of every response under both tenant contracts.
+
+**Why.** Stage 2 exit gate = objective #1's pattern on dev data.
+
+**Problem it solves.** Proves the adapters — not the prompt — carry the tenant
+behavior: the base model with the identical system message passes neither
+contract even once.
+
+**Expected impact.** Green light for Stage 3 (endpoint + benchmarks). The sealed
+set stays untouched until Stage 4.
+
+**Measured impact.** Matrix (100 goals/arm, 0 HTTP errors, wall 627s):
+base 0%/0%, meridian 100%/0%, vantage 0%/98%. Gate thresholds >=90 own /
+<=10 rival / <=10 base: all six cells pass with margin. The two vantage misses
+are catalogued in the raw log for the README's honest-limits section. GPU
+memory: 0 MiB idle -> 75,730 MiB with server up (vLLM pre-allocates KV cache at
+its default 0.92 utilization; per-adapter memory delta is measured at Stage 3
+startup logging, not from this number).
+
+**Evidence.** `eval/logs/separation_matrix_20260825T103026225Z.json`,
+`eval/logs/separation_raw_20260825T103026225Z.jsonl`,
+`eval/logs/devmatrix_ab_std_log.txt`, `reports/iter_02.md`.
