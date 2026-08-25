@@ -474,3 +474,42 @@ Sealed sha256 d54319eb…47fb15.
 
 **Evidence.** `data/logs/full_outputs.log`, `data/logs/full_filter.log`,
 `data/generated/full/filter_summary.json`, `eval/SEALED.sha256`.
+
+## Entry 9 — Training route switch: NeMo (route A) -> HF PEFT + TRL (route B)
+
+**Date:** 2026-08-25
+
+**What.** Abandoned the NeMo-API training route after one attempt and one
+diagnostic; adapter training now runs `train/train_lora_hf.py` (route B) inside
+the same `nvcr.io/nvidia/nemo:26.08` container, reading the same
+`train/config_<tenant>.yaml`. Cluster idle-scale-down raised to 30 min for the
+duration of the training session so back-to-back jobs reuse the pulled image.
+
+**Why.** Job `upbeat_map_g80sxygzbh` (nemo-lora-meridian) failed with
+`No module named 'nemo'`. Diagnostic job `funny_ball_xpnt0wxsxt` on the same
+image shows the 26.08 container's default interpreter (`/opt/venv/bin/python`,
+3.12.3) ships `megatron.bridge` but neither `nemo` nor `lightning`: NVIDIA's
+26.x NeMo-FW images have moved the training stack to Megatron-Bridge. Source
+trees for NeMo sit in `/opt` uninstalled. Rewriting `train_lora.py` against the
+Megatron-Bridge API two days before the deadline, with no way to verify the API
+offline, is exactly the "NeMo fights the environment" case the plan reserved the
+fallback for.
+
+**Problem it solves.** Training was blocked; route B unblocks it with identical
+hyperparameters (single shared config; both scripts print the resolved values).
+
+**Expected impact.** A rank-16 HF PEFT adapter per tenant, directly in the
+layout vLLM's `--lora-modules` reads — the conversion step (`convert_to_hf.py`)
+drops out of the critical path entirely. The trade, stated openly: the delivered
+adapters are not trained through the NeMo library itself, though they run in
+NVIDIA's NeMo-FW container and serve identically. `train_lora.py` stays in the
+repo as the route-A entry point with this entry referenced in its header.
+
+**Measured impact.** Route A attempt: 1 failed job (~25 min billed, ~$1.50,
+dominated by the image pull). Diagnostic: ~3 min, ~$0.20. Route B outcome lands
+in the next entry.
+
+**Evidence.** Azure ML jobs `upbeat_map_g80sxygzbh` (failed, std_log shows the
+resolved config then the import failure), `funny_ball_xpnt0wxsxt` (the
+importable-modules table), scratchpad log copy committed at
+`train/logs/container_diagnostic_20260825.txt`.

@@ -1,0 +1,25 @@
+/opt/venv/bin/python
+Python 3.12.3
+torch                                    2.13.0a0+8145d630e8.nv26.6.54250401
+transformers                             5.14.1
+{"nemo": false, "megatron": true, "megatron.bridge": true, "torch": true, "transformers": true, "peft": true, "trl": false, "lightning": false}
+/opt:
+Evaluator
+Export-Deploy
+Megatron-Bridge
+NeMo
+NeMo-FW
+Run
+amazon
+hpcx
+mellanox
+nvidia
+pytorch
+rdma-core
+tensorrt
+uv_cache
+venv
+
+/workspace:
+NOTICES.txt
+README.md
