@@ -29,7 +29,7 @@ tools/                 mock vLLM OpenAI server, for running the tools offline
 eval/separation.py     the proof artifact: per-arm tenant confusion matrix
 bench/                 swap_time.py, run_matrix.py, economics.py
 scripts/               guardrail + make_report.py
-tests/                 self-test for the measurement tooling
+tests/                 self-tests: measurement tooling, data-generation providers
 train/                 two LoRA routes (NeMo primary, HF PEFT fallback) + configs
 serve/azure/           vLLM container, az ml YAMLs, deploy.sh with a cost guardrail
 serve/spark/           the on-prem DGX Spark path
@@ -71,6 +71,69 @@ python data/generate.py package --out-dir data/generated/dryrun/ \
 Expected: 20 in, 17 kept, 3 rejected — one bad gate sequence, one string
 `timeline_weeks`, one Vantage plan written in Meridian voice. Saved output:
 `data/logs/dryrun.log`.
+
+## Data generation
+
+`data/generate.py outputs` is the only stage that talks to a model, and it can
+talk to two:
+
+| flag | transport | key | used for |
+| --- | --- | --- | --- |
+| `--provider anthropic` (default) | the `anthropic` SDK, imported lazily | `ANTHROPIC_API_KEY` | the original plan |
+| `--provider openai` | stdlib `urllib.request`, no new dependency | `OPENAI_API_KEY`, or `--api-key-env NAME` | Azure OpenAI / Azure AI Foundry, and the offline mock |
+
+The second provider exists for a budget reason, not a technical one. This
+project's budget is an Azure free-trial credit and there is no Anthropic key in
+the build environment, so generation is paid for with Azure credit against a
+cheap Azure-hosted deployment (`gpt-4o-mini`) rather than blocked indefinitely.
+
+```bash
+# Azure OpenAI, deployment route: POST {base}/openai/deployments/{model}
+#   /chat/completions?api-version=VER   with an `api-key` header
+.venv/bin/python data/generate.py outputs --provider openai \
+    --model gpt-4o-mini \
+    --base-url https://my-resource.openai.azure.com \
+    --api-key-env AZURE_OPENAI_API_KEY \
+    --azure-api-version 2024-10-21
+
+# plain OpenAI route: POST {base}/chat/completions  with Authorization: Bearer
+.venv/bin/python data/generate.py outputs --provider openai \
+    --model gpt-4o-mini --base-url https://api.openai.com/v1
+```
+
+Both providers send the identical request: the same system prompt, one user
+message, `max_tokens` 2000, and no sampling parameters unless `--temperature` is
+passed. The key is only ever read from an environment variable — there is no
+`--api-key` flag — and a missing key exits 2 without sending anything. The one
+exception is a loopback `--base-url` (`127.0.0.1`/`localhost`), where a missing
+key is allowed because that is the mock server and it has no auth. Failures are
+retried up to 3 attempts on HTTP 429/5xx with fixed 2s/4s sleeps between them,
+after which the row is recorded with an `error` field and the run continues; the
+stage summary counts them.
+
+**Which generator produced a row is not load-bearing.** Every row goes through
+`data/verifier.py` in the filter stage, which is deterministic, has no model
+client and no network. A cheaper or different generator changes cost, latency
+and rejection rate — never what is allowed into training. That is the whole
+reason switching to an Azure-hosted model is a budget decision rather than a
+scientific one.
+
+### Self-test offline
+
+```bash
+python -m pytest tests/test_generate_openai_provider.py -q   # 5 tests
+python tests/test_generate_openai_provider.py                # same, plain runner
+```
+
+It starts `tools/mock_openai_server.py`, runs the `outputs` stage against it
+with `--provider openai` over 3 goals from `data/fixtures/dryrun_goals.jsonl`,
+and asserts 6 rows (3 goals x 2 tenants) with non-empty text and 0 errors — once
+with a key present and once with none, on loopback. It then pipes those rows
+through the filter stage: each tenant's mock plan passes its own contract
+(6 kept, 0 rejected) and the Meridian plan filed under Vantage is rejected 3/3,
+so "everything passed" cannot be the filter waving data through. No key, no
+network beyond loopback, no credit spent. Saved output:
+`data/logs/generate_provider_selftest.log`.
 
 ## Guardrail
 
@@ -273,11 +336,30 @@ Doc research date for all of it: **2026-08-24**.
 | `serve/spark/launch.sh:51` | Whether any **pinned, reproducible** vLLM tag supports GB10/`sm_121`. `vllm/vllm-openai` does publish aarch64 tags (`v0.27.1-aarch64`, verified on Docker Hub), but those are CUDA 12.9 while GB10 wants CUDA 13. The official vLLM DGX Spark post recommends `cu130-nightly` and warns it is "a compatibility track rather than a reproducible pin". |
 | `serve/spark/launch.sh:60`, `:80` | `DEFAULT_IMAGE` is therefore a moving nightly. Override `IMAGE` with a pinned digest for any published number. `--check-image` resolves this on the box: it pulls the tag, prints the digest, the architecture, the CUDA/torch build and the `sm_` capability vLLM sees. |
 
+### Data generation / Azure OpenAI
+
+Doc research date: **2026-08-25**. The request shape itself *was* verified —
+`POST https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=YYYY-MM-DD`
+with the key in an `api-key` header, and the newer v1 route
+(`{endpoint}/openai/v1/`, no `api-version`, deployment name in the body's
+`model` field) as OpenAI-client compatible
+([reference](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference),
+[v1 API](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/api-version-lifecycle)).
+What the docs could not settle:
+
+| file:line | item |
+| --- | --- |
+| `data/generate.py:381` | The URL path segment is the **deployment** name, which Azure does not force to equal the model id. `--model` is reused for both, which is right only if the deployment was named after the model. A mismatch is a 404 (`DeploymentNotFound`), so verify on the live resource before a paid run. |
+| `data/generate.py:385` | Which `api-version` string the target resource accepts. Versions are dated and retire on a published schedule; nothing offline can pick one. Passed as `--azure-api-version`, never hardcoded. |
+| `data/generate.py:388` | Azure AI Foundry models that are **not** Azure OpenAI (serverless Foundry Models — Mistral, DeepSeek, Llama) are documented on a different route: `POST /chat/completions?api-version=...` under a `/models` base with `Authorization: Bearer`, not `/openai/deployments/`. The exact base path was not confirmed. For those, omit `--azure-api-version` and put the full base path in `--base-url`. |
+| `data/generate.py:409` | `api-key` vs `Authorization: Bearer`. `api-key` is the documented header for Azure OpenAI **key** auth and `Bearer` is documented for Entra ID tokens, but the docs' own OpenAI-client examples for the v1 route pass a key that the client sends as `Bearer`. The two are therefore not interchangeable across the two routes; this code pairs `api-key` with the deployment route, which is the documented pairing. |
+| — | `max_tokens` is sent. Azure's changelog notes `max_completion_tokens` replaced it for the o-series and that `max_tokens` "doesn't work with the o1 series". Fine for `gpt-4o-mini`; recheck before pointing this at a reasoning model. |
+
 ### Carried over from earlier stages
 
 | file:line | item |
 | --- | --- |
-| `data/generate.py:37` | Default generator model id `claude-sonnet-5`. |
+| `data/generate.py:55` | Default generator model id `claude-sonnet-5`. |
 | `bench/run_matrix.py:171`, `:179`, `:183` | Load driver is a stdlib fallback; genai-perf or vLLM's `benchmark_serving.py` replaces it at Stage 3. |
 
 ### What *was* verified
@@ -364,9 +446,13 @@ Both are tested.
 - Every number in this repo traces to a log file under `data/logs/`. Anything synthetic
   or fixture-based is labelled as such where it appears, including a `_note` marker on
   the first line of both dry-run files.
-- `ANTHROPIC_API_KEY` is not present in the build environment. Stage 1 real data
-  generation is blocked on it. The Stage 0 dry run validates pipeline plumbing on
-  labelled fixtures only, and no fixture in this repo is training data.
+- `ANTHROPIC_API_KEY` is not present in the build environment, so the default
+  provider cannot run here. Real data generation is expected to go through
+  `--provider openai` against an Azure OpenAI deployment, funded by the Azure
+  free-trial credit; that path is proved offline against the mock server and has
+  not yet been run against a paid endpoint. The Stage 0 dry run validates
+  pipeline plumbing on labelled fixtures only, and no fixture in this repo is
+  training data.
 - The local machine has no usable GPU (GTX 1650, 4GB). All training and serving stages
   run on Azure. The az CLI is not installed locally yet.
 - Base model is `nvidia/Llama-3.1-Nemotron-Nano-8B-v1`. The system message

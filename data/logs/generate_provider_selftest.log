@@ -1,0 +1,136 @@
+# generate.py --provider openai self-test
+# date: 2026-08-25
+# python: Python 3.12.3  pytest: pytest 9.1.1
+# NOTHING HERE CALLED A MODEL. Every request in this log went to
+# tools/mock_openai_server.py on 127.0.0.1. No key, no network, no credit spent.
+
+================================================================================
+$ .venv/bin/python tests/test_generate_openai_provider.py
+================================================================================
+selftest: mock server up on http://127.0.0.1:53687
+
+==============================================================================
+selftest: test_outputs_stage_runs_against_the_mock_endpoint
+==============================================================================
+outputs: provider openai (openai style) -> http://127.0.0.1:53687/v1/chat/completions
+outputs: goal 1 meridian (2261 chars)
+outputs: goal 1 vantage (2261 chars)
+outputs: goal 2 meridian (2261 chars)
+outputs: goal 2 vantage (2261 chars)
+outputs: goal 3 meridian (2261 chars)
+outputs: goal 3 vantage (2261 chars)
+outputs: wrote 6 outputs to /home/aakash/Videos/multi-lora/tests/.tmp_generate/out_meridian/outputs.jsonl (6 ok, 0 errors, provider=openai, model=meridian)
+outputs: MULTILORA_ABSENT_KEY is unset; http://127.0.0.1:53687/v1 is loopback, so no auth header is sent. Fine against the mock, wrong against Azure.
+outputs: provider openai (openai style) -> http://127.0.0.1:53687/v1/chat/completions
+outputs: goal 1 meridian (1449 chars)
+outputs: goal 1 vantage (1449 chars)
+outputs: goal 2 meridian (1449 chars)
+outputs: goal 2 vantage (1449 chars)
+outputs: goal 3 meridian (1449 chars)
+outputs: goal 3 vantage (1449 chars)
+outputs: wrote 6 outputs to /home/aakash/Videos/multi-lora/tests/.tmp_generate/out_vantage/outputs.jsonl (6 ok, 0 errors, provider=openai, model=vantage)
+selftest: PASS test_outputs_stage_runs_against_the_mock_endpoint
+
+==============================================================================
+selftest: test_filter_keeps_each_tenants_own_mock_output
+==============================================================================
+filter: input /home/aakash/Videos/multi-lora/tests/.tmp_generate/combined_outputs.jsonl
+filter: total 6  kept 6  rejected 0  rejection rate 0.00%
+filter:   meridian: total 3 kept 3 rejected 0
+filter:   vantage: total 3 kept 3 rejected 0
+filter: wrote /home/aakash/Videos/multi-lora/tests/.tmp_generate/filter_combined/kept.jsonl, /home/aakash/Videos/multi-lora/tests/.tmp_generate/filter_combined/rejected.jsonl, /home/aakash/Videos/multi-lora/tests/.tmp_generate/filter_combined/filter_summary.json
+filter: input /home/aakash/Videos/multi-lora/tests/.tmp_generate/cross_outputs.jsonl
+filter: total 6  kept 3  rejected 3  rejection rate 50.00%
+filter:   meridian: total 3 kept 3 rejected 0
+filter:   vantage: total 3 kept 0 rejected 3
+filter:   reason schema+vocab: 3
+filter:   REJECT goal_id=1 tenant=vantage reason=schema+vocab
+filter:     missing required key: blockers
+filter:     missing required key: okrs
+filter:     missing required key: sprint_plan
+filter:     missing required key: success_metric
+filter:     missing required key: timeline_weeks
+filter:     unknown top-level key: approval_chain
+filter:     unknown top-level key: compliance_notes
+filter:     unknown top-level key: risks
+filter:     unknown top-level key: timeline_horizon
+filter:     unknown top-level key: work_packages
+filter:     vocab: vantage needs >= 2 distinct own terms, found 0 (none)
+filter:     vocab: rival terms present for vantage: \bgate reviews?\b, \bgates?\b, \bsign[- ]?offs?\b, \bdeviations?\b, \bnon[- ]?conformances?\b, \bquarters?\b
+filter:   REJECT goal_id=2 tenant=vantage reason=schema+vocab
+filter:     missing required key: blockers
+filter:     missing required key: okrs
+filter:     missing required key: sprint_plan
+filter:     missing required key: success_metric
+filter:     missing required key: timeline_weeks
+filter:     unknown top-level key: approval_chain
+filter:     unknown top-level key: compliance_notes
+filter:     unknown top-level key: risks
+filter:     unknown top-level key: timeline_horizon
+filter:     unknown top-level key: work_packages
+filter:     vocab: vantage needs >= 2 distinct own terms, found 0 (none)
+filter:     vocab: rival terms present for vantage: \bgate reviews?\b, \bgates?\b, \bsign[- ]?offs?\b, \bdeviations?\b, \bnon[- ]?conformances?\b, \bquarters?\b
+filter:   REJECT goal_id=3 tenant=vantage reason=schema+vocab
+filter:     missing required key: blockers
+filter:     missing required key: okrs
+filter:     missing required key: sprint_plan
+filter:     missing required key: success_metric
+filter:     missing required key: timeline_weeks
+filter:     unknown top-level key: approval_chain
+filter:     unknown top-level key: compliance_notes
+filter:     unknown top-level key: risks
+filter:     unknown top-level key: timeline_horizon
+filter:     unknown top-level key: work_packages
+filter:     vocab: vantage needs >= 2 distinct own terms, found 0 (none)
+filter:     vocab: rival terms present for vantage: \bgate reviews?\b, \bgates?\b, \bsign[- ]?offs?\b, \bdeviations?\b, \bnon[- ]?conformances?\b, \bquarters?\b
+filter: wrote /home/aakash/Videos/multi-lora/tests/.tmp_generate/filter_cross/kept.jsonl, /home/aakash/Videos/multi-lora/tests/.tmp_generate/filter_cross/rejected.jsonl, /home/aakash/Videos/multi-lora/tests/.tmp_generate/filter_cross/filter_summary.json
+--base-url is required with --provider openai (e.g. https://my-resource.openai.azure.com or http://127.0.0.1:8000/v1)
+selftest: PASS test_filter_keeps_each_tenants_own_mock_output
+
+==============================================================================
+selftest: test_url_and_header_shapes
+==============================================================================
+selftest: PASS test_url_and_header_shapes
+
+==============================================================================
+selftest: test_openai_provider_refusals
+==============================================================================
+MULTILORA_ABSENT_KEY is not set; the outputs stage cannot run.
+selftest: PASS test_openai_provider_refusals
+
+==============================================================================
+selftest: test_http_errors_are_recorded_not_fatal
+==============================================================================
+outputs: provider openai (openai style) -> http://127.0.0.1:53687/no-such-route/chat/completions
+outputs: goal 1 meridian ERROR HTTP 404: {"error": {"message": "no route /no-such-route/chat/completions"}}
+outputs: goal 1 vantage ERROR HTTP 404: {"error": {"message": "no route /no-such-route/chat/completions"}}
+outputs: goal 2 meridian ERROR HTTP 404: {"error": {"message": "no route /no-such-route/chat/completions"}}
+outputs: goal 2 vantage ERROR HTTP 404: {"error": {"message": "no route /no-such-route/chat/completions"}}
+outputs: goal 3 meridian ERROR HTTP 404: {"error": {"message": "no route /no-such-route/chat/completions"}}
+outputs: goal 3 vantage ERROR HTTP 404: {"error": {"message": "no route /no-such-route/chat/completions"}}
+outputs: wrote 6 outputs to /home/aakash/Videos/multi-lora/tests/.tmp_generate/out_errors/outputs.jsonl (0 ok, 6 errors, provider=openai, model=meridian)
+selftest: PASS test_http_errors_are_recorded_not_fatal
+
+------------------------------------------------------------------------------
+selftest: 5/5 passed
+selftest: PASS
+
+================================================================================
+$ .venv/bin/python -m pytest tests/ data/test_outputs.py -q   (full suite)
+================================================================================
+.........................                                                [100%]
+25 passed in 11.68s
+
+================================================================================
+$ bash scripts/check_no_model_imports.sh
+================================================================================
+guardrail: checking data/verifier.py eval for model-client imports
+guardrail: PASS - no model-client imports in data/verifier.py eval
+(exit 0)
+
+================================================================================
+retry path, checked out of band (the real schedule sleeps 2s then 4s, too slow
+for the suite): permanent 503 -> 3 attempts then an error row; permanent 429 ->
+3 attempts then an error row; recovery on attempt 3 -> text returned, no error;
+HTTP 400 -> 1 attempt, no retry.
+================================================================================

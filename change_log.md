@@ -279,3 +279,104 @@ than the primary.
 and resumed; the partial files on disk were finished rather than rewritten. No
 effect on the result, recorded because the commit spans one session in the log
 and two in reality.
+
+## Entry 5 — generate.py: a second provider, so generation is paid from Azure credit
+
+**Date:** 2026-08-25
+
+**What.** The `outputs` stage of `data/generate.py` gained a provider switch.
+`--provider anthropic` is the default and is byte-for-byte the old path; the
+anthropic SDK is still imported lazily and the request is unchanged.
+`--provider openai` speaks any OpenAI-compatible chat-completions endpoint over
+stdlib `urllib.request` — no new pip package — with `--base-url`,
+`--api-key-env` and `--azure-api-version`. With `--azure-api-version` set the
+request goes Azure OpenAI style, `POST {base}/openai/deployments/{model}/chat/
+completions?api-version=VER` with an `api-key` header; without it, plain OpenAI
+style, `POST {base}/chat/completions` with `Authorization: Bearer`. Both
+providers send the identical payload: same system prompt, one user message,
+`max_tokens` 2000, and no sampling parameters unless `--temperature` is passed.
+429 and 5xx are retried (3 attempts, fixed 2s then 4s); anything else, or an
+exhausted retry, is written as a row carrying an `error` field and counted in
+the stage summary rather than aborting the run. New self-test
+`tests/test_generate_openai_provider.py` drives the whole thing against
+`tools/mock_openai_server.py`.
+
+**Why.** Money. The project budget is a ₹10,000 Azure free-trial credit and
+there is no `ANTHROPIC_API_KEY` in this environment, so the `outputs` stage —
+built in entry 1, corrected in entry 2 — has never been run and Stage 1 has been
+blocked on a key nobody is going to buy. Azure hosts cheap OpenAI-compatible
+models (`gpt-4o-mini`), billed against the same credit that pays for the A100
+later. Adding a second transport unblocks generation without adding a
+dependency, a key, or a second budget.
+
+**Problem it solves.** A blocked pipeline, and the temptation to unblock it by
+lowering the standard of evidence. The generator does not have to be trusted:
+every row it produces goes through `data/verifier.py`, which is deterministic,
+has no model client and no network, so swapping in a cheaper model changes cost,
+latency and rejection rate but cannot change what reaches training. That is why
+this is a budget decision and not a scientific one, and it is the property the
+new self-test checks — the mock's Meridian plan filed under Vantage is rejected
+3/3, so "6 kept" is not the filter waving data through.
+
+Two smaller ones. The key is read from the environment only, exactly as the
+entry-3 tools do it, so an Azure key never reaches shell history or a CI log;
+the single exception is a loopback `--base-url`, where a missing key is allowed
+because that is the mock and it has no auth. And a 429 in the middle of a
+200-goal run used to be a lost run; it is now a lost row with a reason attached.
+
+**Expected impact.** Stage 1 becomes runnable the moment an Azure deployment
+exists: one `--base-url`, one `--azure-api-version`, one env var. Nothing
+downstream changes — filter, package and every number they feed are indifferent
+to which provider wrote the row, and `provider` is now recorded on each row so a
+mixed file stays traceable.
+
+**Measured impact.** No model was called and no credit was spent; every request
+in this entry went to the mock on 127.0.0.1. New self-test: **5/5 passed** under
+the plain runner and under pytest. The `outputs` stage against the mock over 3
+goals from `data/fixtures/dryrun_goals.jsonl` produced **6 rows (3 goals x 2
+tenants), every one non-empty (2261 chars), 0 errors** — run once with a key
+present, exercising the `Authorization` header, and once with the env var absent
+on loopback, exercising the keyless allowance. Piped through the filter stage,
+each tenant's own mock plan passed its own contract: **6 in, 6 kept, 0
+rejected**, 3/3 per tenant. The cross direction on the same data: the Meridian
+plan filed under `vantage` was rejected 3/3 on `schema+vocab`. A missing key for
+a non-loopback endpoint exits 2 and writes nothing; `--provider openai` with no
+`--base-url` exits 2. A route the mock does not serve produced 6 rows, 6 errors,
+exit 0 — a failing endpoint costs rows, not the run. The retry path was checked
+out of band because the real schedule sleeps 2s then 4s: permanent 503 and
+permanent 429 each take exactly 3 attempts before recording the error, recovery
+on attempt 3 returns the text, and an HTTP 400 is not retried. Full suite:
+**25 passed in 11.68s** (was 20). Guardrail grep: PASS — `data/verifier.py` and
+`eval/` are still model-free, and the new HTTP code lives in `data/generate.py`,
+which the guardrail deliberately does not cover.
+
+Doc verification, 2026-08-25, against learn.microsoft.com. Confirmed: the Azure
+OpenAI deployment route `POST https://YOUR_RESOURCE_NAME.openai.azure.com/openai/
+deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=YYYY-MM-DD`; that
+key auth uses the `api-key` header and Entra ID uses `Authorization: Bearer`;
+that `api-version` is a query parameter; and the newer v1 route
+(`{endpoint}/openai/v1/`, no `api-version`, deployment name in the body's
+`model` field) which the plain-OpenAI mode reaches by `--base-url` alone. Four
+`# CHECK:` comments mark what the docs did not settle, listed in README under
+"Unverified items".
+
+**Evidence.** `data/logs/generate_provider_selftest.log` (plain runner, full
+suite, guardrail, and the out-of-band retry check), `README.md` "Data
+generation" and its new "Unverified items" subsection.
+
+**Not done in this stage.** Still no model called and no adapter trained. The
+Azure path has never touched a real endpoint: no Azure OpenAI resource exists
+yet, no deployment has been created, and the whole provider is proved only
+against a mock that answers on loopback with fixed bodies. Nothing here measures
+generation quality, rejection rate against a real model, or cost per row —
+those are Stage 1 numbers and Stage 1 has not run.
+
+**Open item for Stage 1.** Four unresolved items, all in README's Unverified
+table and all resolved by one live call: whether the deployment name equals the
+model id (the code reuses `--model` for both and a mismatch is a 404), which
+`api-version` string the resource accepts, whether the serverless Foundry
+Models route (`/models/...`, `Authorization: Bearer`) is needed instead of
+`/openai/deployments/`, and whether `max_tokens` or `max_completion_tokens` is
+the right field for the chosen deployment. Record the answers here, and record
+the real rejection rate next to them — a cheap generator is only proved cheap
+once the fraction of its output the verifier throws away is known.

@@ -8,13 +8,27 @@ Four stages, run independently so each one can be inspected and re-run:
   filter   run every output through data.verifier.verify, split kept/rejected
   package  turn kept rows into chat-format training JSONL, one file per tenant
 
-Only the `outputs` stage talks to the network, and it imports the anthropic
-package lazily inside the stage. Everything else is stdlib, so the filter and
-package stages stay runnable with no API key and no network.
+Only the `outputs` stage talks to the network. It has two providers:
+
+  --provider anthropic  (default) the anthropic SDK, imported lazily inside the
+                        stage so nothing else in the file needs it installed.
+  --provider openai     any OpenAI-compatible chat-completions endpoint, spoken
+                        with stdlib urllib.request and no new dependency. That
+                        covers Azure OpenAI / Azure AI Foundry deployments —
+                        which is how generation gets paid for out of Azure
+                        credit instead of an Anthropic key — and it also covers
+                        tools/mock_openai_server.py, which is what makes this
+                        stage self-testable offline with no key at all.
+
+Everything else is stdlib, so the filter and package stages stay runnable with
+no API key and no network.
 
 Examples:
   python data/generate.py goals --n-goals 200 --seed 7
   python data/generate.py outputs --model claude-sonnet-5
+  python data/generate.py outputs --provider openai --model gpt-4o-mini \\
+      --base-url https://my-resource.openai.azure.com \\
+      --api-key-env AZURE_OPENAI_API_KEY --azure-api-version 2024-10-21
   python data/generate.py filter --input data/generated/outputs.jsonl
   python data/generate.py package --goals data/generated/goals.jsonl
 """
@@ -26,6 +40,10 @@ import json
 import os
 import random
 import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -279,18 +297,245 @@ def stage_goals(args) -> int:
 # --------------------------------------------------------------------------
 # stage: outputs
 # --------------------------------------------------------------------------
+#
+# Two providers, one request shape: the same system prompt, the same single user
+# message, the same max_tokens, and no sampling parameters unless --temperature
+# is passed. Only the transport differs.
+#
+# Which generator produced a row is deliberately not load-bearing. Every row
+# goes through data.verifier.verify in the filter stage, which is deterministic,
+# has no model client and no network, so swapping the generator changes cost and
+# throughput, never what is allowed into training.
 
 
-def stage_outputs(args) -> int:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+PROVIDERS = ("anthropic", "openai")
+
+DEFAULT_KEY_ENV = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+}
+
+# A key is mandatory for a real endpoint. It is optional against a loopback
+# address, because that is the offline mock in tools/ and it has no auth.
+LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", ""})
+
+REQUEST_TIMEOUT_S = 300.0
+MAX_ATTEMPTS = 3
+# Fixed, not jittered: this is a batch job, not a latency-sensitive path, and a
+# fixed schedule keeps a failing run's wall-clock cost predictable. Sleeps are
+# taken BETWEEN attempts, so MAX_ATTEMPTS=3 uses the first two entries.
+RETRY_SLEEPS_S = (2.0, 4.0, 8.0)
+
+
+def is_local_url(url: str) -> bool:
+    """True if the URL points at loopback, where a missing key is acceptable."""
+    try:
+        host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return False
+    return host in LOCAL_HOSTS or host.startswith("127.")
+
+
+def read_api_key(env_name: str, provider: str, base_url):
+    """Return (key, exit_code). The key is read from the environment only.
+
+    There is no --api-key flag and there will not be one: a key on a command
+    line ends up in shell history, in `ps`, and in CI logs.
+    """
+    key = os.environ.get(env_name, "").strip()
+    if key:
+        return key, None
+    if provider == "openai" and base_url and is_local_url(base_url):
+        print(
+            f"outputs: {env_name} is unset; {base_url} is loopback, so no auth "
+            f"header is sent. Fine against the mock, wrong against Azure."
+        )
+        return None, None
+    print(f"{env_name} is not set; the outputs stage cannot run.", file=sys.stderr)
+    return None, 2
+
+
+def openai_chat_url(base_url: str, model: str, azure_api_version=None) -> str:
+    """The chat-completions URL for one request.
+
+    Two shapes, both documented on learn.microsoft.com (checked 2026-08-25):
+
+    Azure OpenAI, deployment route — used when --azure-api-version is given:
+        POST {base}/openai/deployments/{deployment}/chat/completions
+             ?api-version={VER}
+      with the key in an `api-key` header. Verified against
+      https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference
+      ("POST https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/
+       YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2024-06-01", and
+      "all API requests must include the API Key in the `api-key` HTTP header").
+      So --base-url is the bare resource endpoint here, e.g.
+      https://my-resource.openai.azure.com — no /v1 suffix.
+
+    Plain OpenAI — used when --azure-api-version is omitted:
+        POST {base}/chat/completions
+      with `Authorization: Bearer KEY`. This also reaches Azure's newer v1 API
+      by passing --base-url https://my-resource.openai.azure.com/openai/v1,
+      which the same docs describe as OpenAI-client compatible with no
+      api-version parameter.
+
+    # CHECK: the path segment is the *deployment* name, which Azure does not
+    # force to equal the model id. This function reuses --model for both, which
+    # is right only when the deployment was named after the model. Verify on the
+    # live resource before a paid run; a mismatch is a 404 (DeploymentNotFound).
+    # CHECK: which api-version string the target resource accepts. Versions are
+    # dated, are retired on a published schedule, and the docs list several as
+    # current. Nothing here can pick one without the live resource.
+    # CHECK: Azure AI Foundry models that are NOT Azure OpenAI (serverless
+    # Foundry Models — Mistral, DeepSeek, Llama) are documented on a different
+    # route, "POST /chat/completions?api-version=..." under a /models base with
+    # `Authorization: Bearer`, not /openai/deployments/. For those, omit
+    # --azure-api-version and give the full base path in --base-url; the exact
+    # base path was not confirmed from the docs.
+    """
+    base = base_url.rstrip("/")
+    if azure_api_version:
+        deployment = urllib.parse.quote(model, safe="")
+        version = urllib.parse.quote(azure_api_version, safe="")
+        return f"{base}/openai/deployments/{deployment}/chat/completions?api-version={version}"
+    return f"{base}/chat/completions"
+
+
+def openai_headers(api_key, azure_api_version=None) -> dict:
+    """Auth header for one request. Azure key auth is `api-key`, not Bearer."""
+    headers = {"Content-Type": "application/json"}
     if not api_key:
-        print("ANTHROPIC_API_KEY is not set; the outputs stage cannot run.", file=sys.stderr)
-        return 2
+        return headers
+    if azure_api_version:
+        # CHECK: `api-key` is the documented header for Azure OpenAI key auth
+        # (Entra ID uses `Authorization: Bearer <token>` instead). The docs' own
+        # OpenAI-client examples for the v1 route send a key as Bearer, so the
+        # two headers are not interchangeable across the two routes and this
+        # pairing — api-key with the deployment route — is the documented one.
+        headers["api-key"] = api_key
+    else:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
+
+
+def post_openai_chat(url, headers, body_bytes, timeout=REQUEST_TIMEOUT_S):
+    """One chat completion. Returns (text, error). Never raises.
+
+    Retries HTTP 429 and 5xx up to MAX_ATTEMPTS times on the fixed schedule.
+    Anything else — a 400, a 404, a bad body — is returned as an error on the
+    first try. An exhausted or non-retryable failure is a failed row, not a
+    failed run: the caller records it and keeps going.
+    """
+    last_error = "no attempt was made"
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        request = urllib.request.Request(url, data=body_bytes, headers=headers, method="POST")
+        retryable = False
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            text = payload["choices"][0]["message"]["content"]
+            return (text or "").strip(), None
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")[:300]
+            last_error = f"HTTP {exc.code}: {detail}"
+            retryable = exc.code == 429 or exc.code >= 500
+        except urllib.error.URLError as exc:
+            last_error = f"URLError: {exc.reason}"
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+            last_error = f"unexpected response shape: {type(exc).__name__}: {exc}"
+        except Exception as exc:  # noqa: BLE001 - a dead endpoint is a data point
+            last_error = f"{type(exc).__name__}: {exc}"
+
+        if not retryable or attempt == MAX_ATTEMPTS:
+            break
+        sleep_s = RETRY_SLEEPS_S[min(attempt, len(RETRY_SLEEPS_S)) - 1]
+        print(
+            f"outputs:   attempt {attempt}/{MAX_ATTEMPTS} failed ({last_error[:120]}); "
+            f"retrying in {sleep_s:.0f}s"
+        )
+        time.sleep(sleep_s)
+    return "", last_error
+
+
+def build_anthropic_caller(args):
+    """Return (caller, exit_code). caller(tenant, goal) -> (text, error)."""
+    env_name = args.api_key_env or DEFAULT_KEY_ENV["anthropic"]
+    _, code = read_api_key(env_name, "anthropic", None)
+    if code is not None:
+        return None, code
 
     try:
         import anthropic  # noqa: PLC0415 - lazy on purpose, only this stage needs it
     except ImportError:
         print("the anthropic package is not installed; pip install anthropic", file=sys.stderr)
+        return None, 2
+
+    # The SDK reads ANTHROPIC_API_KEY itself; an alternate env name is passed on.
+    client_kwargs = {}
+    if env_name != "ANTHROPIC_API_KEY":
+        client_kwargs["api_key"] = os.environ[env_name].strip()
+    client = anthropic.Anthropic(**client_kwargs)
+
+    request_kwargs = {}
+    if args.temperature is not None:
+        request_kwargs["temperature"] = args.temperature
+
+    def call(tenant: str, goal: str):
+        try:
+            response = client.messages.create(
+                model=args.model,
+                max_tokens=MAX_TOKENS,
+                system=GENERATOR_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": build_prompt(tenant, goal)}],
+                **request_kwargs,
+            )
+        except Exception as exc:  # noqa: BLE001 - one bad row must not kill the run
+            return "", f"{type(exc).__name__}: {exc}"
+        text = "".join(block.text for block in response.content if block.type == "text")
+        return text.strip(), None
+
+    return call, 0
+
+
+def build_openai_caller(args):
+    """Return (caller, exit_code). caller(tenant, goal) -> (text, error)."""
+    if not args.base_url:
+        print(
+            "--base-url is required with --provider openai (e.g. "
+            "https://my-resource.openai.azure.com or http://127.0.0.1:8000/v1)",
+            file=sys.stderr,
+        )
+        return None, 2
+
+    env_name = args.api_key_env or DEFAULT_KEY_ENV["openai"]
+    api_key, code = read_api_key(env_name, "openai", args.base_url)
+    if code is not None:
+        return None, code
+
+    url = openai_chat_url(args.base_url, args.model, args.azure_api_version)
+    headers = openai_headers(api_key, args.azure_api_version)
+    style = "azure" if args.azure_api_version else "openai"
+    print(f"outputs: provider openai ({style} style) -> {url}")
+
+    def call(tenant: str, goal: str):
+        body = {
+            "model": args.model,
+            "messages": [
+                {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
+                {"role": "user", "content": build_prompt(tenant, goal)},
+            ],
+            "max_tokens": MAX_TOKENS,
+            "stream": False,
+        }
+        if args.temperature is not None:
+            body["temperature"] = args.temperature
+        return post_openai_chat(url, headers, json.dumps(body).encode("utf-8"))
+
+    return call, 0
+
+
+def stage_outputs(args) -> int:
+    if args.provider not in PROVIDERS:  # argparse already guards this
+        print(f"unknown provider {args.provider!r}", file=sys.stderr)
         return 2
 
     out_dir = Path(args.out_dir)
@@ -298,41 +543,41 @@ def stage_outputs(args) -> int:
     if not goals_path.exists():
         print(f"no goals file at {goals_path}; run the goals stage first", file=sys.stderr)
         return 2
-    goals = read_jsonl(goals_path)
 
-    client = anthropic.Anthropic()
+    builder = build_openai_caller if args.provider == "openai" else build_anthropic_caller
+    call, code = builder(args)
+    if call is None:
+        return code
+
+    goals = read_jsonl(goals_path)
     rows = []
+    errors = 0
     for goal_row in goals:
         for tenant in TENANTS:
-            request_kwargs = {}
-            if args.temperature is not None:
-                request_kwargs["temperature"] = args.temperature
-            response = client.messages.create(
-                model=args.model,
-                max_tokens=MAX_TOKENS,
-                system=GENERATOR_SYSTEM_PROMPT,
-                messages=[
-                    {"role": "user", "content": build_prompt(tenant, goal_row["goal"])}
-                ],
-                **request_kwargs,
-            )
-            text = "".join(
-                block.text for block in response.content if block.type == "text"
-            ).strip()
-            rows.append(
-                {
-                    "goal_id": goal_row["goal_id"],
-                    "goal": goal_row["goal"],
-                    "tenant": tenant,
-                    "text": text,
-                    "model": args.model,
-                }
-            )
-            print(f"outputs: goal {goal_row['goal_id']} {tenant} ({len(text)} chars)")
+            text, error = call(tenant, goal_row["goal"])
+            row = {
+                "goal_id": goal_row["goal_id"],
+                "goal": goal_row["goal"],
+                "tenant": tenant,
+                "text": text,
+                "model": args.model,
+                "provider": args.provider,
+            }
+            if error:
+                errors += 1
+                row["error"] = error
+                print(f"outputs: goal {goal_row['goal_id']} {tenant} ERROR {error[:200]}")
+            else:
+                print(f"outputs: goal {goal_row['goal_id']} {tenant} ({len(text)} chars)")
+            rows.append(row)
 
     path = out_dir / "outputs.jsonl"
     write_jsonl(path, rows)
-    print(f"outputs: wrote {len(rows)} outputs to {path}")
+    print(
+        f"outputs: wrote {len(rows)} outputs to {path} "
+        f"({len(rows) - errors} ok, {errors} errors, provider={args.provider}, "
+        f"model={args.model})"
+    )
     return 0
 
 
@@ -491,11 +736,39 @@ def main(argv=None) -> int:
     )
     parser.add_argument("stage", choices=sorted(STAGES), help="pipeline stage to run")
     parser.add_argument("--n-goals", type=int, default=50, help="goals stage: how many goals")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="outputs stage: model id")
+    parser.add_argument(
+        "--model", default=DEFAULT_MODEL,
+        help="outputs stage: model id; with --provider openai on Azure this is "
+             "the deployment name that goes in the URL path",
+    )
     parser.add_argument("--seed", type=int, default=0, help="goals stage: random seed")
     parser.add_argument(
         "--temperature", type=float, default=None,
         help="outputs stage: sampling temperature; omit for Claude 5 models, which reject it",
+    )
+    parser.add_argument(
+        "--provider", choices=PROVIDERS, default="anthropic",
+        help="outputs stage: which API to call (default anthropic)",
+    )
+    parser.add_argument(
+        "--base-url",
+        help="outputs stage, --provider openai: endpoint base, e.g. "
+             "https://my-resource.openai.azure.com (with --azure-api-version), "
+             "https://my-resource.openai.azure.com/openai/v1, or "
+             "http://127.0.0.1:8000/v1 for the mock. Required for openai.",
+    )
+    parser.add_argument(
+        "--api-key-env",
+        help="outputs stage: env var holding the API key (default "
+             "ANTHROPIC_API_KEY for anthropic, OPENAI_API_KEY for openai). The "
+             "key is only ever read from the environment, never from a flag.",
+    )
+    parser.add_argument(
+        "--azure-api-version",
+        help="outputs stage, --provider openai: send Azure OpenAI style — "
+             "POST {base-url}/openai/deployments/{model}/chat/completions"
+             "?api-version=VER with an api-key header. Omit for plain OpenAI "
+             "style (POST {base-url}/chat/completions, Authorization: Bearer).",
     )
     parser.add_argument(
         "--out-dir", default=str(DEFAULT_OUT_DIR), help="directory for stage outputs"
