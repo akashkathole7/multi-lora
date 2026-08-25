@@ -879,3 +879,75 @@ silently excluded from that commit by a gitignore rule covering the directory;
 git errored on the batch add and the log files were skipped. Caught while
 committing entry 16, when the same error appeared visibly. All six files are
 force-added, secret-scanned, in commit d3b9a96; endpoint.env remains ignored.)*
+
+## Entry 17 — Write-up: economics re-run on the measured adapter size, RESULTS.md, docs reconciled
+
+**Date:** 2026-08-25
+
+**What.** Re-ran `bench/economics.py --adapter-gb 0.168 --sku-price-usd-hr 3.673
+--hours-month 730`, retiring the 0.08 GB estimate that had been marked ESTIMATE
+since entry 3. Wrote `RESULTS.md`: sealed matrix, the full 17-field four-arm
+benchmark table, both swap runs, the GPU memory phase table, the economics
+tables, an honest-limits section and a provenance section. Updated `README.md`
+(status paragraph, a Results section, an Honest-limits pointer, a Reproduce
+section, and the Unverified-items table marked up with what the deploy session
+answered) and `ARCHITECTURE.md` (estimates replaced by measurements, a
+measured-on note, the preload finding). Added `email_draft.md`, unsent, marked
+DRAFT.
+
+**Why.** Four days of logs are not a result until someone can read them. Every
+measurement was already on disk; what was missing was a document that puts each
+number next to the file it came from, and three stale documents that still said
+"no model has been called".
+
+**Problem it solves.** Two. First, a reader with no access to this machine could
+not tell which numbers were measured, which were arithmetic and which were
+estimates carried over from the drafting stages — README and ARCHITECTURE still
+described a project that had never run. Second, the economics table was still
+printing an unmeasured adapter size, which is exactly the kind of number that
+gets quoted after the caveat has been forgotten.
+
+**Expected impact.** One document to hand to a reader; three documents that no
+longer contradict the logs.
+
+**Measured impact.** Economics at the measured 0.168 GB: N=1 is 16.00 GB against
+16.17 GB, so multi-LoRA is 0.17 GB *worse* at one tenant and the table says so;
+N=20 is 320.00 GB against 19.36 GB, 16.53x. The old 0.08 GB estimate gave 17.60
+GB and 18.18x at N=20 (entry 3), so the correction moves the headline ratio down
+by about 9%. Nothing else changed: no new measurement was taken, no Azure
+resource was created, no model was called.
+
+Three things in this repo disagreed with the logs and the logs won. (1) Entry 14
+says the first deployment provisioned in "~26 min". The log says deployment
+`blue` was created 11:13:44Z and took 100% of traffic at 11:56:36Z — 42.9
+minutes, and 46 minutes for the whole `deploy.sh` run from pre-flight to smoke
+test. RESULTS and README use the log's numbers. (2) Entry 14 states the
+per-request tokens/sec drop as −10.1%; recomputed from
+`matrix_summary_endpoint_session1.json` it is 69.451 → 62.495 = −10.02%. RESULTS
+uses −10.0%. (3) The adapter artifact is 167,832,240 bytes (entry 11), but
+`start_server.sh` reported the mounted adapter *directories* as 1,748,220,372 and
+1,748,221,939 bytes. Both numbers are real and they measure different things; no
+log itemises what else is in those folders, so RESULTS states both and says the
+difference is unexplained.
+
+Also corrected while reconciling: `ARCHITECTURE.md` and `README.md` both said the
+region was East US; it was `southcentralus`. `ARCHITECTURE.md`'s request-path
+diagram showed a `/score` scoring URI; the resolved URI is
+`/v1/chat/completions`.
+
+Full suite: **25 passed**. Guardrail grep: PASS. `bench/logs`, `eval/logs`,
+`data/logs` and `reports` restored after the suite rewrote their `_selftest`
+files, with the new economics output staged first so the restore could not take
+it.
+
+**Evidence.** `bench/logs/economics_measured_final.md` (the run), `RESULTS.md`
+(every number with its source file), this commit's diff for the three document
+updates.
+
+**Not done in this stage.** No new measurement. The per-adapter GPU footprint is
+still not measured and RESULTS says so rather than estimating it; the per-request
+cold-load number still does not exist on this serving mode; behaviour beyond
+`--max-loras` is still unmeasured; the load driver is still the stdlib fallback.
+The ~$35 total project spend is an estimate assembled from this log's own
+per-item figures and the list SKU rate — it has not been reconciled against an
+Azure invoice, and no invoice is in this repository.

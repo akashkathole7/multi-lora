@@ -5,6 +5,13 @@ behaviour out of one GPU. It is written for a reader who does not work with
 machine learning day to day. There is no marketing here; where a number is an
 estimate rather than a measurement, it says so.
 
+**Measured on.** Everything in this document that is now a measurement rather
+than an estimate was measured on one NVIDIA A100 80GB — Azure ML managed online
+endpoint, SKU `Standard_NC24ads_A100_v4`, region `southcentralus` — on
+2026-08-25, serving `vllm/vllm-openai:v0.27.1`. The results and the log file
+behind each number are in `RESULTS.md`. Numbers still carrying a `~` are still
+estimates.
+
 Two tenants exist in this project: **Meridian Industrial** (formal, regulated,
 gate reviews) and **Vantage Cloud** (terse, sprints, owners). Both take the same
 input — a leadership goal in plain English — and return a structured plan. They
@@ -45,21 +52,21 @@ Seven layer types per transformer block are targeted:
 | `o_proj` | the attention output projection |
 | `gate_proj`, `up_proj`, `down_proj` | the three feed-forward projections |
 
-**Size estimate.** Assuming the Llama-3.1-8B geometry (32 layers, hidden size
-4096, feed-forward size 14336, 8 key/value heads), rank 16 over those seven
-modules comes to about 42 million adapter parameters. At bf16 that is roughly
-**84 MB on disk** — call it 40–90 MB depending on how the checkpoint is stored
-(fp32 storage roughly doubles it; storing fewer modules roughly halves it).
+**Size, measured.** The trained adapter is **167,832,240 bytes — 160 MB — and
+both tenants' adapters are that size to the byte**, which is expected since the
+shape is fixed by the configuration and not by the data. That is fp32 storage of
+about 42 million adapter parameters; written at bf16 it would be roughly half.
+Source: `change_log.md` entry 11, from the training job output.
 
-> This is an **ESTIMATE**, not a measurement. It is arithmetic over the
-> published layer dimensions, and the exact geometry of the Nemotron Nano
-> variant has not been confirmed against its config file. `bench/economics.py`
-> uses 0.08 GB as its default adapter size for the same reason and labels every
-> table it prints as ESTIMATE. The number is replaced by `du -b` on the real
-> adapter directory once training has run.
+> The estimate this replaces was ~84 MB, arithmetic over the published
+> Llama-3.1-8B layer dimensions at bf16. The arithmetic was right and the
+> storage precision was the thing not known: 42M parameters at 4 bytes is
+> 160 MB, at 2 bytes it is 80 MB. `bench/economics.py` still defaults to the old
+> 0.08 GB estimate; `bench/logs/economics_measured_final.md` is the table run
+> with the measured `--adapter-gb 0.168`.
 
-The comparison that matters: **16,000 MB of base model, 84 MB of tenant.** The
-tenant-specific part is about half a percent of the whole.
+The comparison that matters: **16,000 MB of base model, 160 MB of tenant.** The
+tenant-specific part is about one percent of the whole.
 
 ## 3. Why switching tenants is nearly free
 
@@ -77,13 +84,24 @@ for that row of the batch. In effect it is a pointer change. This is why the
 warm swap cost should be near zero, and `bench/swap_time.py` exists to prove that
 against the real server rather than assert it.
 
-**Cold swap — the first time only.** The first request for an adapter the server
-has not served yet has to fetch that adapter's weights and put them on the GPU:
-Azure Blob Storage → the container's local disk → host memory → GPU memory. That
-is a one-time cost per adapter per server lifetime, of the order of a fraction of
-a second for an 84 MB file, and after it the adapter is warm. `--max-cpu-loras`
-sets how many adapters are kept in host memory, which shortens a re-load if an
-adapter is evicted from the GPU slots and needed again.
+**Measured:** adapter TTFT p50 minus base TTFT p50 was −48 ms for meridian and
++4 ms for vantage, against a 292 ms p95−p50 spread on the same run. Zero within
+noise, in both directions. `RESULTS.md` section (c).
+
+**Cold swap — and why it did not happen.** The first request for an adapter the
+server has not served yet would have to fetch that adapter's weights and put them
+on the GPU: Azure Blob Storage → the container's local disk → host memory → GPU
+memory. On this deployment no request ever pays it. **Adapters named in
+`--lora-modules` are loaded during server startup, so every registered tenant is
+GPU-resident before the first client request arrives** — meridian's first-ever
+request was *faster* than its own warm p50 (0.976s vs 1.232s), and vantage's was
+100 ms slower, inside its own warm p95 spread. The Blob-to-GPU cost is real and
+is paid once, inside the container start: 2 min 26 s from process start to
+`/health` answering, base weights and both adapters included. A per-request cold
+number exists only under dynamic adapter loading, which is a different serving
+mode; not measured. `--max-cpu-loras` sets how many adapters are kept in host
+memory, which would shorten a re-load if an adapter were evicted from the GPU
+slots and needed again.
 
 `bench/swap_time.py` measures both by controlling request order: warm baseline
 first, then exactly one first-touch request to the adapter (the cold sample),
@@ -92,12 +110,14 @@ the adapter load cost.
 
 ## 4. The economics of many tenants
 
+At the measured adapter size of 0.168 GB (`bench/logs/economics_measured_final.md`):
+
 | tenants | separate fine-tuned models | one base + N adapters |
 | ---: | ---: | ---: |
-| 1 | ~16 GB | ~16.08 GB |
-| 2 | ~32 GB | ~16.16 GB |
-| 5 | ~80 GB | ~16.40 GB |
-| 20 | ~320 GB | ~17.60 GB |
+| 1 | ~16 GB | 16.17 GB |
+| 2 | ~32 GB | 16.34 GB |
+| 5 | ~80 GB | 16.84 GB |
+| 20 | ~320 GB | 19.36 GB |
 
 An A100 has 80 GB. The left-hand column runs out of GPU at five tenants and needs
 a second GPU. The right-hand column has not meaningfully moved. The practical
@@ -112,7 +132,9 @@ asserted.
 The honest caveat: memory is not the only constraint. One GPU has a fixed
 throughput, so twenty tenants share one queue. Whether that is acceptable is a
 throughput question, not a memory question, and it is what `bench/run_matrix.py`
-is for.
+is for. It was run, at concurrency 4 with two tenants, and the answer was that
+multi-LoRA costs +9.3% on time-to-first-token and −10.0% on per-request token
+rate against a base-only arm. `RESULTS.md` section (b).
 
 ## 5. Data privacy
 
@@ -122,7 +144,7 @@ Everything in this design lives inside the customer's own Azure subscription:
 - **Training** runs on a GPU in the customer's subscription.
 - **The adapters** are written to the customer's Blob Storage.
 - **The endpoint** is an Azure ML managed online endpoint in the customer's
-  workspace, in the customer's region (East US here).
+  workspace, in the customer's region (`southcentralus` here).
 - **The base model** is a public open-weights checkpoint pulled once at
   container start; it carries no customer data.
 
@@ -144,7 +166,7 @@ serving README says how.
 ```
   client
     |
-    |  POST https://<endpoint>.<region>.inference.ml.azure.com/score
+    |  POST https://<endpoint>.<region>.inference.ml.azure.com/v1/chat/completions
     |  Authorization: Bearer <key>
     |  { "model": "meridian",            <-- this field picks the tenant
     |    "messages": [ {"role":"system","content":"detailed thinking off"},
@@ -166,8 +188,8 @@ serving README says how.
   |                                                               |
   |   +-------------------------+   +---------------------------+  |
   |   |  FROZEN BASE  ~16 GB    |   |  LoRA slots (--max-loras) |  |
-  |   |  loaded once, shared    | + |  meridian ~84 MB          |  |
-  |   |  by every request       |   |  vantage  ~84 MB          |  |
+  |   |  loaded once, shared    | + |  meridian 160 MB          |  |
+  |   |  by every request       |   |  vantage  160 MB          |  |
   |   +-------------------------+   +---------------------------+  |
   |                    |                                          |
   |                    v                                          |
@@ -198,14 +220,14 @@ not as request volume rises. The fix is to raise `--max-loras` and
 tenants across replicas. With two tenants and `--max-loras 4` this project has
 headroom; a twenty-tenant deployment would need this tuned and measured.
 
-**Cold-start latency on the first request per adapter.** The first request to
-each adapter after a server restart pays the load cost. A tenant whose traffic is
-one request an hour may pay it repeatedly if the adapter keeps getting evicted.
-Mitigations: warm every adapter with a synthetic request at startup, or keep
-`--max-cpu-loras` high enough that eviction only goes as far as host memory.
-Separately, the whole container has a cold start of its own — pulling and loading
-16 GB of base weights takes minutes, which matters for the endpoint's readiness
-probe and is discussed in `serve/azure/README.md`.
+**Cold-start latency on the first request per adapter.** This one did not
+materialise here and the reason is worth knowing: statically registered adapters
+are loaded at server start, so no request paid a load cost (section 3). It comes
+back if you switch to dynamic adapter loading, or if enough distinct adapters are
+live that eviction starts. The container's own cold start is real either way —
+pulling and loading 16 GB of base weights took 2 min 26 s inside the container
+and the deployment took 42.9 minutes end to end to accept traffic, which matters
+for the endpoint's readiness probe and is discussed in `serve/azure/README.md`.
 
 **One GPU is shared throughput.** Memory scales beautifully with tenant count.
 Throughput does not. Every tenant's request queues behind every other tenant's on
@@ -244,14 +266,15 @@ vLLM directly because the flags are the thing being measured.
 
 ## Where the claims in this document get checked
 
-| claim | checked by |
-| --- | --- |
-| warm swap is effectively free | `bench/swap_time.py` (`warm_swap_estimate_s`) |
-| cold swap is a one-time per-adapter cost | `bench/swap_time.py` (`cold_swap_estimate_s`) |
-| adapters produce tenant-correct output | `eval/separation.py` (confusion matrix) |
-| one GPU carries both tenants at usable throughput | `bench/run_matrix.py` |
-| the memory and cost arithmetic | `bench/economics.py` |
-| adapter size on disk | not yet measured — Stage 2 |
+| claim | checked by | outcome |
+| --- | --- | --- |
+| warm swap is effectively free | `bench/swap_time.py` (`warm_swap_estimate_s`) | confirmed: −48 ms / +4 ms |
+| cold swap is a one-time per-adapter cost | `bench/swap_time.py` (`cold_swap_estimate_s`) | superseded: no runtime cold path, adapters preload at server start |
+| adapters produce tenant-correct output | `eval/separation.py` (confusion matrix) | confirmed on 160 sealed goals: 100% own, 0% rival, base 0% both |
+| one GPU carries both tenants at usable throughput | `bench/run_matrix.py` | yes, at a cost: +9.3% TTFT, −10.0% tokens/sec, 0 errors on 160 requests |
+| the memory and cost arithmetic | `bench/economics.py` | re-run with the measured adapter size |
+| adapter size on disk | training job artifact | measured: 167,832,240 bytes per tenant |
+| per-adapter GPU footprint | `nvidia-smi` phase markers | **not measured** — invisible inside vLLM's pre-allocated pool |
 
-Until those have run against a real endpoint, every number in this document that
-carries a `~` is an estimate.
+Every number in this document that still carries a `~` is still an estimate.
+`RESULTS.md` holds the measurements and names the log file behind each one.
