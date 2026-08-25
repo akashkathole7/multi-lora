@@ -218,15 +218,19 @@ Against the counterfactual: a second full fine-tune of this base model is roughl
 16 GB of weights (8B parameters at bf16). Per tenant, 0.168 GB against ~16 GB —
 about 1%.
 
-One honest discrepancy. `start_server.sh` reported the mounted adapter
+One discrepancy, now itemised. `start_server.sh` reported the mounted adapter
 *directories* as 1,748,220,372 bytes (meridian) and 1,748,221,939 bytes
-(vantage) in `serve/azure/logs/deployment_logs.txt`. Those directories are the
-registered `adapters-both:1` asset as the training job wrote it, and they contain
-more than the adapter tensors. Nothing in any log itemises what else is in them,
-so the difference is unexplained here. The 0.168 GB figure is the adapter weights
-and is what section (e) uses; if you ship the training-job folder unpruned, the
-per-tenant storage figure is the 1.75 GB one. Both numbers are in the logs, so
-both are stated.
+(vantage) in `serve/azure/logs/deployment_logs.txt` — roughly 10x the served
+artifact. A blob-level listing of the registered asset
+(`eval/logs/adapter_vantage_asset_listing.tsv`, 39 files summing to
+1,748,205,555 bytes) shows why: the training-job output folder carries, beside
+the root adapter (adapter_model.safetensors, 167,832,240 bytes — the only
+tensors vLLM loads), TRL's per-epoch training checkpoints (`checkpoint-84/168/252`),
+each holding its own copy of the adapter plus a 335,929,123-byte `optimizer.pt`
+and tokenizer files. The 0.168 GB figure is the served per-tenant artifact and
+is what section (e) uses; pruning `checkpoint-*/` from the asset before
+registration would make the stored size match it. Shipped unpruned, the
+per-tenant storage figure is 1.75 GB. Both numbers are in the logs.
 
 ---
 

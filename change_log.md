@@ -951,3 +951,11 @@ cold-load number still does not exist on this serving mode; behaviour beyond
 The ~$35 total project spend is an estimate assembled from this log's own
 per-item figures and the list SKU rate — it has not been reconciled against an
 Azure invoice, and no invoice is in this repository.
+
+*(Addendum to entry 17: the adapter-directory size discrepancy RESULTS flagged
+as unexplained is now itemised. A blob listing of the registered asset —
+committed at `eval/logs/adapter_vantage_asset_listing.tsv`, 39 files,
+1,748,205,555 bytes — shows the mounted folder is the 167,832,240-byte served
+adapter plus TRL per-epoch checkpoints (each ~168 MB adapter copy + ~336 MB
+optimizer.pt + tokenizer). vLLM reads only the root adapter files. RESULTS
+section (d) updated from "unexplained" to the itemisation.)*
