@@ -1,0 +1,24 @@
+# Azure ML command job — route B (HF PEFT + TRL fallback), one tenant per submission.
+#   az ml job create -f train/azureml/job_hf.yaml -g rg-multilora -w mlw-multilora \
+#     --set inputs.tenant=vantage --set display_name=hf-lora-vantage
+# Uses the same NeMo container (it ships recent torch/transformers/peft) and
+# pip-installs trl at start; the exact versions land in the job log and are
+# copied into versions.lock at Stage 2 close.
+# Cost: a100-cluster, ~$3.67/hr, scale 0->1->0 around the job.
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+experiment_name: multilora-train
+display_name: hf-lora-TENANT
+code: ../..
+command: >-
+  set -e;
+  nvidia-smi --query-gpu=memory.used,memory.total --format=csv;
+  pip install --quiet trl datasets;
+  pip list 2>/dev/null | grep -Ei "^(torch|transformers|peft|trl|datasets) " || true;
+  python train/train_lora_hf.py --tenant ${{inputs.tenant}} --out outputs/adapter_${{inputs.tenant}};
+  ls -la outputs/adapter_${{inputs.tenant}}
+inputs:
+  tenant: meridian
+environment:
+  # CHECK: see job_nemo.yaml note on anonymous pull.
+  image: nvcr.io/nvidia/nemo:26.08
+compute: azureml:a100-cluster

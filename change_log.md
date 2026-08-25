@@ -444,3 +444,33 @@ Provider self-tests 5/5 after the concurrency patch.
 
 **Evidence.** `data/logs/pilot_outputs.log`, `data/logs/pilot_filter.log`,
 `data/generated/pilot/filter_summary.json`, `reports/iter_01.md`.
+
+## Entry 8 — Stage 1 complete: dataset generated, splits frozen, sealed set hashed
+
+**Date:** 2026-08-25
+
+**What.** Generated outputs for goals 81–800 (1,440 calls, concurrency 8, 8 API
+errors), merged with the 160 pilot rows (goals 1–80 are byte-identical between
+the pilot and the seed-1234 960-goal run). Filtered all 1,600 rows. Split:
+train = goals 1–700, dev = goals 701–800 (`eval/dev_goals.jsonl`; their generated
+outputs are excluded from training), sealed = goals 801–960
+(`eval/sealed_goals.jsonl`; never had outputs generated at all). Packaged
+train-range kept rows to chat JSONL. Wrote `eval/SEALED.sha256`.
+
+**Why.** Stage 1 exit criteria: ≥600 verifier-clean pairs per tenant, 160 sealed
+goals, frozen splits, rejection <15%.
+
+**Problem it solves.** The dev matrix (Stage 2) and sealed matrix (Stage 4) must
+measure generalization, so their goals cannot appear in training data.
+
+**Expected impact.** Training inputs for both adapters at the exact paths
+`train/config_*.yaml` expects.
+
+**Measured impact.** Full-set rejection 4.69% (1,600 in, 1,525 kept; meridian
+760/800, vantage 765/800; 19 parse — includes 8 API errors — 3 schema, 53
+vocab). Train-range clean pairs: meridian 663, vantage 667 (target ≥600).
+Every packaged row verified to carry system message "detailed thinking off".
+Sealed sha256 d54319eb…47fb15.
+
+**Evidence.** `data/logs/full_outputs.log`, `data/logs/full_filter.log`,
+`data/generated/full/filter_summary.json`, `eval/SEALED.sha256`.

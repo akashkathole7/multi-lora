@@ -1,0 +1,164 @@
+filter: input data/generated/full/outputs_merged.jsonl
+filter: total 1600  kept 1525  rejected 75  rejection rate 4.69%
+filter:   meridian: total 800 kept 760 rejected 40
+filter:   vantage: total 800 kept 765 rejected 35
+filter:   reason parse: 19
+filter:   reason schema: 3
+filter:   reason vocab: 53
+filter:   REJECT goal_id=1 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=12 tenant=meridian reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=12 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=17 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=21 tenant=vantage reason=parse
+filter:     json parse error: Invalid control character at: line 7 column 80 (char 292)
+filter:   REJECT goal_id=34 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=35 tenant=meridian reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=39 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=44 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bsign[- ]?offs?\b
+filter:   REJECT goal_id=56 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bsprints?\b, \bowners?\b
+filter:   REJECT goal_id=57 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=58 tenant=meridian reason=schema
+filter:     risks[0]: missing key severity
+filter:     risks[1]: missing key severity
+filter:     risks[2]: missing key severity
+filter:     risks[3]: missing key severity
+filter:   REJECT goal_id=117 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=120 tenant=vantage reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=136 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=177 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=192 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=193 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=202 tenant=meridian reason=parse
+filter:     json parse error: Expecting ',' delimiter: line 74 column 140 (char 3341)
+filter:   REJECT goal_id=219 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=235 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bsign[- ]?offs?\b
+filter:   REJECT goal_id=244 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=245 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bquarters?\b
+filter:   REJECT goal_id=246 tenant=vantage reason=parse
+filter:     json parse error: Expecting ',' delimiter: line 1 column 558 (char 557)
+filter:   REJECT goal_id=248 tenant=vantage reason=parse
+filter:     json parse error: Expecting ',' delimiter: line 1 column 683 (char 682)
+filter:   REJECT goal_id=292 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=298 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \biterat(e|es|ed|ing|ion|ions)\b
+filter:   REJECT goal_id=304 tenant=meridian reason=schema
+filter:     risks[0]: missing key severity
+filter:     risks[1]: missing key severity
+filter:     risks[2]: missing key severity
+filter:     risks[3]: missing key severity
+filter:   REJECT goal_id=309 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=314 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=324 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bsign[- ]?offs?\b
+filter:   REJECT goal_id=326 tenant=vantage reason=parse
+filter:     json parse error: Expecting ',' delimiter: line 1 column 577 (char 576)
+filter:   REJECT goal_id=339 tenant=meridian reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=339 tenant=vantage reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=354 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=370 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=373 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=377 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=388 tenant=vantage reason=parse
+filter:     json parse error: Expecting ',' delimiter: line 1 column 2133 (char 2132)
+filter:   REJECT goal_id=394 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=461 tenant=vantage reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=474 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=475 tenant=vantage reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=480 tenant=meridian reason=parse
+filter:     json parse error: Expecting ',' delimiter: line 67 column 169 (char 3183)
+filter:   REJECT goal_id=492 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=500 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bsign[- ]?offs?\b
+filter:   REJECT goal_id=513 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=531 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=533 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=539 tenant=vantage reason=parse
+filter:     json parse error: Expecting ':' delimiter: line 1 column 1157 (char 1156)
+filter:   REJECT goal_id=542 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bdeviations?\b
+filter:   REJECT goal_id=545 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=549 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=557 tenant=vantage reason=schema
+filter:     sprint_plan[5]: missing key sprint
+filter:   REJECT goal_id=559 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=564 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=600 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=604 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=615 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=616 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=626 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bsign[- ]?offs?\b
+filter:   REJECT goal_id=629 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=636 tenant=vantage reason=parse
+filter:     json parse error: Expecting property name enclosed in double quotes: line 35 column 5 (char 1537)
+filter:   REJECT goal_id=656 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bsign[- ]?offs?\b
+filter:   REJECT goal_id=672 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \biterat(e|es|ed|ing|ion|ions)\b
+filter:   REJECT goal_id=673 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=683 tenant=vantage reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=685 tenant=meridian reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=686 tenant=vantage reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=693 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bnon[- ]?conformances?\b
+filter:   REJECT goal_id=710 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \biterat(e|es|ed|ing|ion|ions)\b
+filter:   REJECT goal_id=723 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bweeks?\b
+filter:   REJECT goal_id=737 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=746 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bsign[- ]?offs?\b
+filter:   REJECT goal_id=790 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bdeviations?\b
+filter: wrote data/generated/full/kept.jsonl, data/generated/full/rejected.jsonl, data/generated/full/filter_summary.json

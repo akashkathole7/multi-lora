@@ -1,0 +1,24 @@
+{
+  "input": "data/generated/full/outputs_merged.jsonl",
+  "total": 1600,
+  "kept": 1525,
+  "rejected": 75,
+  "rejection_rate_pct": 4.69,
+  "per_tenant": {
+    "meridian": {
+      "total": 800,
+      "kept": 760,
+      "rejected": 40
+    },
+    "vantage": {
+      "total": 800,
+      "kept": 765,
+      "rejected": 35
+    }
+  },
+  "reasons": {
+    "vocab": 53,
+    "parse": 19,
+    "schema": 3
+  }
+}

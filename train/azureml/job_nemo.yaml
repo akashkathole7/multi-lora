@@ -1,0 +1,26 @@
+# Azure ML command job — route A (NeMo Framework), one tenant per submission.
+# Submit with:
+#   az ml job create -f train/azureml/job_nemo.yaml -g rg-multilora -w mlw-multilora \
+#     --set display_name=nemo-lora-meridian \
+#     --set command='cd /mnt/azureml/cr/... (see note)'  # tenant is baked into `command` below; edit before submit
+# Cost: runs on a100-cluster (Standard_NC24ads_A100_v4, ~$3.67/hr). The cluster
+# scales 0->1 on submit and back to 0 after `scale_down_idle` (default). Billing
+# starts at node provision (image pull time is billed).
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+experiment_name: multilora-train
+display_name: nemo-lora-TENANT
+code: ../..
+command: >-
+  set -e;
+  nvidia-smi --query-gpu=memory.used,memory.total --format=csv;
+  python train/train_lora.py --tenant ${{inputs.tenant}};
+  python train/convert_to_hf.py --tenant ${{inputs.tenant}} --out outputs/adapter_${{inputs.tenant}};
+  ls -la outputs/adapter_${{inputs.tenant}}
+inputs:
+  tenant: meridian
+environment:
+  # CHECK: tag verified pullable anonymously on 2026-08-25 (tags/list via nvcr.io
+  # token endpoint); Azure ML pulling it unauthenticated is verified only by this
+  # job actually running.
+  image: nvcr.io/nvidia/nemo:26.08
+compute: azureml:a100-cluster

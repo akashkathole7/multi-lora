@@ -1,0 +1,12 @@
+# Excluded from Azure ML `code:` snapshot uploads (jobs). Mirrors .gitignore
+# plus repo content a training job never reads.
+.venv/
+.git/
+__pycache__/
+*.pyc
+bench/logs/
+eval/logs/
+reports/
+serve/
+tools/
+tests/
