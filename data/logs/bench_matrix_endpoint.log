@@ -1,0 +1,183 @@
+run_matrix: run endpoint_session1
+run_matrix: endpoint https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions
+run_matrix: arms base-only, base-plus-one-lora, two-lora-round-robin, two-lora-interleaved
+run_matrix: 40 requests/arm at concurrency 4
+run_matrix: served names {"base": "base", "meridian": "meridian", "vantage": "vantage"}
+run_matrix: raw log bench/logs/matrix_raw_endpoint_session1.jsonl
+run_matrix: driver = stdlib fallback (see docstring: genai-perf / benchmark_serving.py are the preferred generators)
+run_matrix: --- arm base-only ---
+run_matrix: [base-only]    1/40 slot 1 base       ttft 1.2778s e2e 5.0858s
+run_matrix: [base-only]    2/40 slot 2 base       ttft 1.2775s e2e 5.4654s
+run_matrix: [base-only]    3/40 slot 3 base       ttft 1.2724s e2e 5.6747s
+run_matrix: [base-only]    4/40 slot 0 base       ttft 1.2740s e2e 6.2866s
+run_matrix: [base-only]    5/40 slot 2 base       ttft 1.1257s e2e 3.9089s
+run_matrix: [base-only]    6/40 slot 1 base       ttft 1.0938s e2e 5.6296s
+run_matrix: [base-only]    7/40 slot 0 base       ttft 1.1234s e2e 4.9304s
+run_matrix: [base-only]    8/40 slot 3 base       ttft 1.1206s e2e 6.8500s
+run_matrix: [base-only]    9/40 slot 2 base       ttft 1.0063s e2e 3.4651s
+run_matrix: [base-only]   10/40 slot 1 base       ttft 1.1111s e2e 5.0701s
+run_matrix: [base-only]   11/40 slot 3 base       ttft 1.1338s e2e 5.0112s
+run_matrix: [base-only]   12/40 slot 0 base       ttft 1.1110s e2e 6.5358s
+run_matrix: [base-only]   13/40 slot 1 base       ttft 1.0844s e2e 2.4791s
+run_matrix: [base-only]   14/40 slot 2 base       ttft 1.1243s e2e 5.7316s
+run_matrix: [base-only]   15/40 slot 2 base       ttft 1.2302s e2e 3.5727s
+run_matrix: [base-only]   16/40 slot 0 base       ttft 1.2301s e2e 5.3739s
+run_matrix: [base-only]   17/40 slot 3 base       ttft 1.1381s e2e 6.2580s
+run_matrix: [base-only]   18/40 slot 1 base       ttft 1.2635s e2e 6.2444s
+run_matrix: [base-only]   19/40 slot 2 base       ttft 1.1381s e2e 6.8730s
+run_matrix: [base-only]   20/40 slot 0 base       ttft 1.1927s e2e 6.1847s
+run_matrix: [base-only]   21/40 slot 3 base       ttft 1.0972s e2e 6.1820s
+run_matrix: [base-only]   22/40 slot 1 base       ttft 1.1513s e2e 5.5332s
+run_matrix: [base-only]   23/40 slot 2 base       ttft 1.0247s e2e 5.3245s
+run_matrix: [base-only]   24/40 slot 3 base       ttft 1.0598s e2e 4.5145s
+run_matrix: [base-only]   25/40 slot 0 base       ttft 1.0374s e2e 6.3637s
+run_matrix: [base-only]   26/40 slot 1 base       ttft 1.2288s e2e 6.9590s
+run_matrix: [base-only]   27/40 slot 2 base       ttft 1.2282s e2e 4.7084s
+run_matrix: [base-only]   28/40 slot 3 base       ttft 1.3042s e2e 5.5837s
+run_matrix: [base-only]   29/40 slot 0 base       ttft 1.0829s e2e 6.0408s
+run_matrix: [base-only]   30/40 slot 1 base       ttft 1.1292s e2e 6.0779s
+run_matrix: [base-only]   31/40 slot 2 base       ttft 1.2314s e2e 4.6430s
+run_matrix: [base-only]   32/40 slot 0 base       ttft 0.9784s e2e 4.0958s
+run_matrix: [base-only]   33/40 slot 3 base       ttft 1.1028s e2e 6.9050s
+run_matrix: [base-only]   34/40 slot 2 base       ttft 1.0920s e2e 4.3947s
+run_matrix: [base-only]   35/40 slot 1 base       ttft 1.0535s e2e 6.8484s
+run_matrix: [base-only]   36/40 slot 3 base       ttft 1.0830s e2e 3.8485s
+run_matrix: [base-only]   37/40 slot 2 base       ttft 0.9548s e2e 3.8657s
+run_matrix: [base-only]   38/40 slot 0 base       ttft 1.1235s e2e 6.8944s
+run_matrix: [base-only]   39/40 slot 3 base       ttft 1.0000s e2e 5.1170s
+run_matrix: [base-only]   40/40 slot 1 base       ttft 1.2045s e2e 6.1238s
+run_matrix: --- arm base-plus-one-lora ---
+run_matrix: [base-plus-one-lora]    1/40 slot 0 base       ttft 1.7380s e2e 3.9896s
+run_matrix: [base-plus-one-lora]    2/40 slot 2 base       ttft 1.7378s e2e 5.4263s
+run_matrix: [base-plus-one-lora]    3/40 slot 0 base       ttft 1.0265s e2e 3.8953s
+run_matrix: [base-plus-one-lora]    4/40 slot 3 meridian   ttft 1.7381s e2e 8.4945s
+run_matrix: [base-plus-one-lora]    5/40 slot 1 meridian   ttft 1.7385s e2e 8.5202s
+run_matrix: [base-plus-one-lora]    6/40 slot 2 meridian   ttft 1.1237s e2e 7.8963s
+run_matrix: [base-plus-one-lora]    7/40 slot 0 base       ttft 1.0392s e2e 5.5264s
+run_matrix: [base-plus-one-lora]    8/40 slot 1 base       ttft 1.0784s e2e 5.0941s
+run_matrix: [base-plus-one-lora]    9/40 slot 3 meridian   ttft 1.0919s e2e 7.8853s
+run_matrix: [base-plus-one-lora]   10/40 slot 3 base       ttft 1.1158s e2e 3.1753s
+run_matrix: [base-plus-one-lora]   11/40 slot 0 base       ttft 1.0227s e2e 7.7891s
+run_matrix: [base-plus-one-lora]   12/40 slot 2 meridian   ttft 1.1315s e2e 7.9847s
+run_matrix: [base-plus-one-lora]   13/40 slot 1 meridian   ttft 1.0841s e2e 7.8871s
+run_matrix: [base-plus-one-lora]   14/40 slot 1 base       ttft 1.2216s e2e 2.6750s
+run_matrix: [base-plus-one-lora]   15/40 slot 3 meridian   ttft 1.1845s e2e 7.9861s
+run_matrix: [base-plus-one-lora]   16/40 slot 0 base       ttft 1.2412s e2e 6.9556s
+run_matrix: [base-plus-one-lora]   17/40 slot 2 meridian   ttft 1.4167s e2e 8.0791s
+run_matrix: [base-plus-one-lora]   18/40 slot 3 base       ttft 1.1381s e2e 4.0438s
+run_matrix: [base-plus-one-lora]   19/40 slot 1 meridian   ttft 1.4199s e2e 8.1764s
+run_matrix: [base-plus-one-lora]   20/40 slot 2 base       ttft 1.1275s e2e 4.5055s
+run_matrix: [base-plus-one-lora]   21/40 slot 0 meridian   ttft 1.0256s e2e 7.7850s
+run_matrix: [base-plus-one-lora]   22/40 slot 3 meridian   ttft 1.1674s e2e 7.9375s
+run_matrix: [base-plus-one-lora]   23/40 slot 1 base       ttft 1.0421s e2e 7.8219s
+run_matrix: [base-plus-one-lora]   24/40 slot 0 base       ttft 1.0898s e2e 5.1181s
+run_matrix: [base-plus-one-lora]   25/40 slot 2 meridian   ttft 1.1257s e2e 7.8847s
+run_matrix: [base-plus-one-lora]   26/40 slot 1 base       ttft 1.2932s e2e 6.0329s
+run_matrix: [base-plus-one-lora]   27/40 slot 2 base       ttft 1.3300s e2e 4.8111s
+run_matrix: [base-plus-one-lora]   28/40 slot 3 meridian   ttft 1.2139s e2e 7.9865s
+run_matrix: [base-plus-one-lora]   29/40 slot 0 meridian   ttft 1.1283s e2e 7.8837s
+run_matrix: [base-plus-one-lora]   30/40 slot 2 base       ttft 1.1276s e2e 5.8372s
+run_matrix: [base-plus-one-lora]   31/40 slot 1 meridian   ttft 1.1986s e2e 7.9583s
+run_matrix: [base-plus-one-lora]   32/40 slot 0 base       ttft 1.1433s e2e 5.8376s
+run_matrix: [base-plus-one-lora]   33/40 slot 3 meridian   ttft 1.1955s e2e 8.1924s
+run_matrix: [base-plus-one-lora]   34/40 slot 2 meridian   ttft 1.3309s e2e 8.0901s
+run_matrix: [base-plus-one-lora]   35/40 slot 1 base       ttft 1.2263s e2e 7.6020s
+run_matrix: [base-plus-one-lora]   36/40 slot 3 base       ttft 1.1264s e2e 6.1425s
+run_matrix: [base-plus-one-lora]   37/40 slot 0 meridian   ttft 1.2277s e2e 7.9866s
+run_matrix: [base-plus-one-lora]   38/40 slot 1 base       ttft 1.2221s e2e 6.4258s
+run_matrix: [base-plus-one-lora]   39/40 slot 2 meridian   ttft 1.3291s e2e 8.0996s
+run_matrix: [base-plus-one-lora]   40/40 slot 3 meridian   ttft 1.2358s e2e 7.9868s
+run_matrix: --- arm two-lora-round-robin ---
+run_matrix: [two-lora-round-robin]    1/40 slot 3 vantage    ttft 1.3324s e2e 8.2946s
+run_matrix: [two-lora-round-robin]    2/40 slot 2 meridian   ttft 1.3323s e2e 8.2952s
+run_matrix: [two-lora-round-robin]    3/40 slot 0 meridian   ttft 1.3325s e2e 8.2995s
+run_matrix: [two-lora-round-robin]    4/40 slot 1 vantage    ttft 1.3332s e2e 8.3014s
+run_matrix: [two-lora-round-robin]    5/40 slot 1 vantage    ttft 1.1178s e2e 8.0843s
+run_matrix: [two-lora-round-robin]    6/40 slot 2 vantage    ttft 1.1235s e2e 8.2925s
+run_matrix: [two-lora-round-robin]    7/40 slot 3 meridian   ttft 1.1238s e2e 8.2930s
+run_matrix: [two-lora-round-robin]    8/40 slot 0 meridian   ttft 1.1201s e2e 8.2896s
+run_matrix: [two-lora-round-robin]    9/40 slot 0 vantage    ttft 1.2288s e2e 8.1919s
+run_matrix: [two-lora-round-robin]   10/40 slot 3 meridian   ttft 1.2293s e2e 8.1931s
+run_matrix: [two-lora-round-robin]   11/40 slot 1 meridian   ttft 1.4326s e2e 8.3970s
+run_matrix: [two-lora-round-robin]   12/40 slot 2 vantage    ttft 1.2295s e2e 8.1975s
+run_matrix: [two-lora-round-robin]   13/40 slot 1 meridian   ttft 1.2274s e2e 8.1901s
+run_matrix: [two-lora-round-robin]   14/40 slot 0 meridian   ttft 1.2284s e2e 8.1980s
+run_matrix: [two-lora-round-robin]   15/40 slot 2 vantage    ttft 1.2234s e2e 8.1967s
+run_matrix: [two-lora-round-robin]   16/40 slot 3 vantage    ttft 1.2270s e2e 8.2016s
+run_matrix: [two-lora-round-robin]   17/40 slot 2 meridian   ttft 1.4237s e2e 8.3885s
+run_matrix: [two-lora-round-robin]   18/40 slot 3 vantage    ttft 1.4224s e2e 8.3889s
+run_matrix: [two-lora-round-robin]   19/40 slot 1 meridian   ttft 1.4340s e2e 8.4010s
+run_matrix: [two-lora-round-robin]   20/40 slot 0 vantage    ttft 1.4264s e2e 8.3970s
+run_matrix: [two-lora-round-robin]   21/40 slot 3 vantage    ttft 1.2282s e2e 8.1885s
+run_matrix: [two-lora-round-robin]   22/40 slot 1 meridian   ttft 1.2265s e2e 8.1914s
+run_matrix: [two-lora-round-robin]   23/40 slot 0 vantage    ttft 1.2243s e2e 8.1887s
+run_matrix: [two-lora-round-robin]   24/40 slot 2 meridian   ttft 1.2283s e2e 8.1960s
+run_matrix: [two-lora-round-robin]   25/40 slot 3 meridian   ttft 1.3123s e2e 8.1825s
+run_matrix: [two-lora-round-robin]   26/40 slot 2 vantage    ttft 1.3060s e2e 8.1764s
+run_matrix: [two-lora-round-robin]   27/40 slot 1 vantage    ttft 1.3093s e2e 8.1795s
+run_matrix: [two-lora-round-robin]   28/40 slot 0 meridian   ttft 1.3072s e2e 8.8054s
+run_matrix: [two-lora-round-robin]   29/40 slot 1 meridian   ttft 1.7486s e2e 8.7138s
+run_matrix: [two-lora-round-robin]   30/40 slot 2 vantage    ttft 1.7504s e2e 8.7146s
+run_matrix: [two-lora-round-robin]   31/40 slot 3 meridian   ttft 1.7499s e2e 8.7252s
+run_matrix: [two-lora-round-robin]   32/40 slot 0 vantage    ttft 1.4318s e2e 8.4959s
+run_matrix: [two-lora-round-robin]   33/40 slot 1 meridian   ttft 1.3287s e2e 8.2945s
+run_matrix: [two-lora-round-robin]   34/40 slot 3 meridian   ttft 1.3188s e2e 8.2882s
+run_matrix: [two-lora-round-robin]   35/40 slot 2 vantage    ttft 1.3287s e2e 8.2987s
+run_matrix: [two-lora-round-robin]   36/40 slot 0 vantage    ttft 1.3292s e2e 8.4005s
+run_matrix: [two-lora-round-robin]   37/40 slot 2 meridian   ttft 1.0188s e2e 7.9805s
+run_matrix: [two-lora-round-robin]   38/40 slot 3 vantage    ttft 1.0189s e2e 7.9810s
+run_matrix: [two-lora-round-robin]   39/40 slot 1 meridian   ttft 1.2250s e2e 8.2078s
+run_matrix: [two-lora-round-robin]   40/40 slot 0 vantage    ttft 1.0190s e2e 8.0845s
+run_matrix: --- arm two-lora-interleaved ---
+run_matrix: [two-lora-interleaved]    1/40 slot 0 meridian   ttft 1.3300s e2e 8.3024s
+run_matrix: [two-lora-interleaved]    2/40 slot 1 vantage    ttft 1.3318s e2e 8.4986s
+run_matrix: [two-lora-interleaved]    3/40 slot 2 meridian   ttft 1.3313s e2e 8.4988s
+run_matrix: [two-lora-interleaved]    4/40 slot 3 vantage    ttft 1.3288s e2e 8.4991s
+run_matrix: [two-lora-interleaved]    5/40 slot 1 vantage    ttft 1.2291s e2e 8.1909s
+run_matrix: [two-lora-interleaved]    6/40 slot 2 meridian   ttft 1.2287s e2e 8.1904s
+run_matrix: [two-lora-interleaved]    7/40 slot 0 meridian   ttft 1.4262s e2e 8.3884s
+run_matrix: [two-lora-interleaved]    8/40 slot 3 vantage    ttft 1.2284s e2e 8.1912s
+run_matrix: [two-lora-interleaved]    9/40 slot 2 meridian   ttft 1.2293s e2e 8.1924s
+run_matrix: [two-lora-interleaved]   10/40 slot 0 meridian   ttft 1.2294s e2e 8.1925s
+run_matrix: [two-lora-interleaved]   11/40 slot 3 vantage    ttft 1.2294s e2e 8.1926s
+run_matrix: [two-lora-interleaved]   12/40 slot 1 vantage    ttft 1.2307s e2e 8.1948s
+run_matrix: [two-lora-interleaved]   13/40 slot 1 vantage    ttft 1.1246s e2e 8.0877s
+run_matrix: [two-lora-interleaved]   14/40 slot 0 meridian   ttft 1.1262s e2e 8.0897s
+run_matrix: [two-lora-interleaved]   15/40 slot 2 meridian   ttft 1.2262s e2e 8.1914s
+run_matrix: [two-lora-interleaved]   16/40 slot 3 vantage    ttft 1.2255s e2e 8.1931s
+run_matrix: [two-lora-interleaved]   17/40 slot 0 meridian   ttft 1.2281s e2e 8.1915s
+run_matrix: [two-lora-interleaved]   18/40 slot 1 vantage    ttft 1.2279s e2e 8.1927s
+run_matrix: [two-lora-interleaved]   19/40 slot 2 meridian   ttft 1.4344s e2e 8.3973s
+run_matrix: [two-lora-interleaved]   20/40 slot 3 vantage    ttft 1.4314s e2e 8.3957s
+run_matrix: [two-lora-interleaved]   21/40 slot 1 vantage    ttft 1.2275s e2e 8.1915s
+run_matrix: [two-lora-interleaved]   22/40 slot 0 meridian   ttft 1.2286s e2e 8.1931s
+run_matrix: [two-lora-interleaved]   23/40 slot 2 meridian   ttft 1.2299s e2e 8.1919s
+run_matrix: [two-lora-interleaved]   24/40 slot 3 vantage    ttft 1.2291s e2e 8.1914s
+run_matrix: [two-lora-interleaved]   25/40 slot 0 meridian   ttft 1.2279s e2e 8.2927s
+run_matrix: [two-lora-interleaved]   26/40 slot 1 vantage    ttft 1.2289s e2e 8.2944s
+run_matrix: [two-lora-interleaved]   27/40 slot 2 meridian   ttft 1.2300s e2e 8.1945s
+run_matrix: [two-lora-interleaved]   28/40 slot 3 vantage    ttft 1.2300s e2e 8.1943s
+run_matrix: [two-lora-interleaved]   29/40 slot 0 meridian   ttft 1.1927s e2e 8.1926s
+run_matrix: [two-lora-interleaved]   30/40 slot 1 vantage    ttft 1.2002s e2e 8.1926s
+run_matrix: [two-lora-interleaved]   31/40 slot 3 vantage    ttft 1.2230s e2e 8.1723s
+run_matrix: [two-lora-interleaved]   32/40 slot 2 meridian   ttft 1.2234s e2e 8.1867s
+run_matrix: [two-lora-interleaved]   33/40 slot 1 vantage    ttft 1.1252s e2e 8.0883s
+run_matrix: [two-lora-interleaved]   34/40 slot 0 meridian   ttft 1.2257s e2e 8.1965s
+run_matrix: [two-lora-interleaved]   35/40 slot 2 meridian   ttft 1.2289s e2e 8.1941s
+run_matrix: [two-lora-interleaved]   36/40 slot 3 vantage    ttft 1.2429s e2e 8.2089s
+run_matrix: [two-lora-interleaved]   37/40 slot 1 vantage    ttft 1.1261s e2e 8.0899s
+run_matrix: [two-lora-interleaved]   38/40 slot 0 meridian   ttft 1.3285s e2e 8.2981s
+run_matrix: [two-lora-interleaved]   39/40 slot 3 vantage    ttft 1.1292s e2e 8.0982s
+run_matrix: [two-lora-interleaved]   40/40 slot 2 meridian   ttft 1.1296s e2e 8.1083s
+
+BENCH MATRIX
+source: bench/logs/matrix_raw_endpoint_session1.jsonl
+                 arm   n  err  ttft_p50_s  ttft_p95_s  itl_p50_s  itl_p95_s  e2e_p50_s  e2e_p95_s  tok/s_agg   req/s  vs_base_%
+-------------------------------------------------------------------------------------------------------------------------------
+           base-only  40    0      1.1239      1.2775     0.0113     0.0116     5.5584     6.8950   269.9290  0.7140     0.0000
+  base-plus-one-lora  40    0      1.1759      1.7380     0.0132     0.0136     7.8055     8.2075   237.9610  0.5730    40.4270
+two-lora-round-robin  40    0      1.3066      1.7487     0.0136     0.0140     8.2889     8.7151   245.6960  0.4800    49.1230
+two-lora-interleaved  40    0      1.2288      1.4265     0.0136     0.0140     8.1926     8.4986   248.6930  0.4860    47.3910
+
+run_matrix: wrote bench/logs/matrix_summary_endpoint_session1.json
+run_matrix: total wall time 291.60s

@@ -769,3 +769,46 @@ continuation guard PASS.
 
 **Evidence.** This commit's diff; `eval/SEALED.sha256` byte-identical before
 and after the suite (the new teardown assertion is the proof mechanism).
+
+## Entry 14 — Stage 3: endpoint live, smoke green, four-arm benchmark measured
+
+**Date:** 2026-08-25
+
+**What.** `deploy.sh` ran end to end, exit 0: environment image built in the
+workspace ACR, endpoint `multilora-ep` + deployment `blue`
+(Standard_NC24ads_A100_v4) provisioned in ~26 min, scoring URI issued, route
+probed, smoke test passed on all three served names, GPU memory phases captured
+via get-logs. Then `bench/run_matrix.py` ran all four arms against the live URI:
+40 requests/arm, concurrency 4, 0 errors on 160 requests.
+
+**Why.** Objectives #2 (multi-LoRA inference overhead) and #5 (runs on Azure
+Foundry) need a live endpoint and measured rows.
+
+**Problem it solves / findings.**
+- Routing (# CHECK since entry 4): RESOLVED — the scoring URI itself is
+  `.../v1/chat/completions` (Azure honored `scoring_route`); appending another
+  `/v1/...` 424s. Tools work unmodified.
+- Mount shape (# CHECK from entry 12): RESOLVED — nested,
+  `/mnt/adapters/adapters/<tenant>`, matched pattern logged.
+- Smoke: meridian PASS, vantage PASS by the deterministic verifier through the
+  public URI; base returns prose that fails both contracts (correct control).
+- **Objective #2 verdict: outside the 5% aspiration, reported and explained.**
+  TTFT p50 base 1.124s -> interleaved 1.229s (+9.3%); per-request tokens/sec
+  p50 69.5 -> 62.5 (-10.1%). The larger e2e delta (+47%) decomposes exactly:
+  adapter arms emit 512-token p50 outputs (structured JSON, hitting the
+  driver's cap) vs base 382 (1.34x) times the 1.11x per-token slowdown
+  ~= 1.47x observed. Not adapter-cache thrashing: both adapters resident,
+  --max-loras 4, no swap events. The per-token cost is LoRA's extra GEMMs.
+- GPU memory phases: 0 MiB at container start, 74,002 MiB from server-ready
+  onward, flat through both adapters' first requests — vLLM pre-allocates its
+  pool, so marginal adapter memory is invisible to nvidia-smi; the honest
+  per-tenant figure is the adapter artifact itself (167,832,240 B) inside the
+  pre-allocated pool, beside the ~16 GB counterfactual of a second full model.
+
+**Measured impact.** Rows above; full 17-field rows in the summary JSON.
+Session billing: deployment created 11:13Z.
+
+**Evidence.** `serve/azure/logs/deploy_session1.log`,
+`serve/azure/logs/deployment_logs.txt` (GPUMEM phases),
+`serve/azure/logs/smoke_*.json`, `bench/logs/matrix_summary_endpoint_session1.json`,
+`bench/logs/matrix_raw_endpoint_session1.jsonl`, `reports/iter_03.md`.

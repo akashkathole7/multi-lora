@@ -1,0 +1,137 @@
+{
+  "run_id": "endpoint_session1",
+  "raw_log": "bench/logs/matrix_raw_endpoint_session1.jsonl",
+  "endpoint": "https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions",
+  "arms": [
+    "base-only",
+    "base-plus-one-lora",
+    "two-lora-round-robin",
+    "two-lora-interleaved"
+  ],
+  "served_names": {
+    "base": "base",
+    "meridian": "meridian",
+    "vantage": "vantage"
+  },
+  "requests_per_arm": 40,
+  "concurrency": 4,
+  "prompt": "Cut unplanned downtime across our three sites by 30% within a year.",
+  "driver": "stdlib-fallback",
+  "preferred_drivers": [
+    "genai-perf",
+    "vllm/benchmarks/benchmark_serving.py"
+  ],
+  "metric_fields": [
+    "arm",
+    "concurrency",
+    "n_requests",
+    "errors",
+    "model_mix",
+    "ttft_p50_s",
+    "ttft_p95_s",
+    "itl_p50_s",
+    "itl_p95_s",
+    "tokens_per_sec_p50",
+    "tokens_per_sec_p95",
+    "tokens_per_sec_aggregate",
+    "requests_per_sec",
+    "e2e_p50_s",
+    "e2e_p95_s",
+    "wall_time_s",
+    "overhead_vs_base_pct"
+  ],
+  "overhead_baseline_arm": "base-only",
+  "overhead_definition": "(arm e2e_p50 / base-only e2e_p50 - 1) * 100",
+  "itl_definition": "per-request mean (last_token_s - ttft_s)/(tokens-1), p50/p95 across requests",
+  "total_wall_time_s": 291.596,
+  "unset_metric_fields": {},
+  "rows": {
+    "base-only": {
+      "arm": "base-only",
+      "concurrency": 4,
+      "n_requests": 40,
+      "errors": 0,
+      "model_mix": {
+        "base": 40
+      },
+      "ttft_p50_s": 1.123934,
+      "ttft_p95_s": 1.277523,
+      "itl_p50_s": 0.011319,
+      "itl_p95_s": 0.011642,
+      "tokens_per_sec_p50": 69.451,
+      "tokens_per_sec_p95": 74.274,
+      "tokens_per_sec_aggregate": 269.929,
+      "requests_per_sec": 0.714,
+      "e2e_p50_s": 5.558431,
+      "e2e_p95_s": 6.894963,
+      "wall_time_s": 56.055,
+      "overhead_vs_base_pct": 0.0
+    },
+    "base-plus-one-lora": {
+      "arm": "base-plus-one-lora",
+      "concurrency": 4,
+      "n_requests": 40,
+      "errors": 0,
+      "model_mix": {
+        "base": 20,
+        "meridian": 20
+      },
+      "ttft_p50_s": 1.175948,
+      "ttft_p95_s": 1.737988,
+      "itl_p50_s": 0.013248,
+      "itl_p95_s": 0.013573,
+      "tokens_per_sec_p50": 62.558,
+      "tokens_per_sec_p95": 65.471,
+      "tokens_per_sec_aggregate": 237.961,
+      "requests_per_sec": 0.573,
+      "e2e_p50_s": 7.805531,
+      "e2e_p95_s": 8.207524,
+      "wall_time_s": 69.835,
+      "overhead_vs_base_pct": 40.427
+    },
+    "two-lora-round-robin": {
+      "arm": "two-lora-round-robin",
+      "concurrency": 4,
+      "n_requests": 40,
+      "errors": 0,
+      "model_mix": {
+        "vantage": 20,
+        "meridian": 20
+      },
+      "ttft_p50_s": 1.306628,
+      "ttft_p95_s": 1.748656,
+      "itl_p50_s": 0.013633,
+      "itl_p95_s": 0.014029,
+      "tokens_per_sec_p50": 61.769,
+      "tokens_per_sec_p95": 63.373,
+      "tokens_per_sec_aggregate": 245.696,
+      "requests_per_sec": 0.48,
+      "e2e_p50_s": 8.288889,
+      "e2e_p95_s": 8.715142,
+      "wall_time_s": 83.355,
+      "overhead_vs_base_pct": 49.123
+    },
+    "two-lora-interleaved": {
+      "arm": "two-lora-interleaved",
+      "concurrency": 4,
+      "n_requests": 40,
+      "errors": 0,
+      "model_mix": {
+        "meridian": 20,
+        "vantage": 20
+      },
+      "ttft_p50_s": 1.228817,
+      "ttft_p95_s": 1.426478,
+      "itl_p50_s": 0.013628,
+      "itl_p95_s": 0.014025,
+      "tokens_per_sec_p50": 62.495,
+      "tokens_per_sec_p95": 63.291,
+      "tokens_per_sec_aggregate": 248.693,
+      "requests_per_sec": 0.486,
+      "e2e_p50_s": 8.192628,
+      "e2e_p95_s": 8.498642,
+      "wall_time_s": 82.35,
+      "overhead_vs_base_pct": 47.391
+    }
+  }
+}
