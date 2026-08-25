@@ -959,3 +959,10 @@ committed at `eval/logs/adapter_vantage_asset_listing.tsv`, 39 files,
 adapter plus TRL per-epoch checkpoints (each ~168 MB adapter copy + ~336 MB
 optimizer.pt + tokenizer). vLLM reads only the root adapter files. RESULTS
 section (d) updated from "unexplained" to the itemisation.)*
+
+*(Clean-clone rerun, 2026-08-25 night: fresh `git clone` to a temp dir, fresh
+venv (pytest + pyyaml only): verifier self-test 13/13, full suite 25 passed,
+guardrail grep PASS, dry-run filter 20 in / 17 kept / 3 rejected — identical to
+the committed logs. GPU-dependent steps are not re-run — they are the
+documented, parameterized scripts plus the committed logs of their one real
+execution.)*
