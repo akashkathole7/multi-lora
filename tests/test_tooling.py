@@ -50,6 +50,14 @@ EVAL_LOGS = ROOT / "eval" / "logs"
 BENCH_LOGS = ROOT / "bench" / "logs"
 REPORTS = ROOT / "reports"
 REAL_SEALED_PATH = ROOT / "eval" / "SEALED.sha256"
+# Since Stage 1 the repo legitimately carries a real sealed hash. The invariant
+# these tests defend is not "absent" but "untouched": snapshot it at import and
+# compare after.
+REAL_SEALED_BEFORE = REAL_SEALED_PATH.read_bytes() if REAL_SEALED_PATH.exists() else None
+
+
+def _real_sealed_now():
+    return REAL_SEALED_PATH.read_bytes() if REAL_SEALED_PATH.exists() else None
 
 RUN_ID = "selftest"
 MOCK_TTFT_MS = 80.0
@@ -197,10 +205,10 @@ def teardown_module(module=None):
         SERVER = None
     if TMP_DIR.exists():
         shutil.rmtree(TMP_DIR)
-    # The repo must never carry a sealed hash created by a test.
-    assert not REAL_SEALED_PATH.exists(), (
-        f"{REAL_SEALED_PATH} exists after the self-test; a test created a real "
-        f"sealed hash and did not clean it up"
+    # A test must never create or modify the repo's real sealed hash.
+    assert _real_sealed_now() == REAL_SEALED_BEFORE, (
+        f"{REAL_SEALED_PATH} changed during the self-test; a test touched the "
+        f"real sealed hash"
     )
 
 
@@ -253,10 +261,10 @@ def test_separation_matrix_is_the_known_answer():
 
 
 def test_separation_sealed_refuses_without_hash_file():
-    assert not REAL_SEALED_PATH.exists(), (
-        "this test asserts the behaviour when eval/SEALED.sha256 is absent, and "
-        "it is present"
-    )
+    # Point at a hash path that does not exist, so the real eval/SEALED.sha256
+    # (which legitimately exists since Stage 1) is not involved at all.
+    absent_hash = TMP_DIR / "no_such_SEALED.sha256"
+    assert not absent_hash.exists()
     code, out = run_tool(
         separation,
         [
@@ -264,6 +272,7 @@ def test_separation_sealed_refuses_without_hash_file():
             "--goals", str(FIXTURE_GOALS),
             "--out-dir", str(TMP_DIR / "sealed_no_hash"),
             "--sealed",
+            "--sealed-hash-path", str(absent_hash),
             "--quiet",
         ],
     )
@@ -330,7 +339,7 @@ def test_separation_sealed_roundtrip_and_tamper():
     assert code == 2, "a goals file changed after sealing should be refused"
 
     hash_path.unlink()
-    assert not REAL_SEALED_PATH.exists()
+    assert _real_sealed_now() == REAL_SEALED_BEFORE
 
 
 # --------------------------------------------------------------------------

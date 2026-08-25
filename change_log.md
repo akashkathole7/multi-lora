@@ -741,3 +741,31 @@ lesson, now executable and negative-tested).
 **Not done in this stage.** Nothing was deployed. No endpoint, no deployment, no
 ACR build, no GPU. Every claim about how the mount behaves, what the scoring URI
 routes to, and how much GPU memory an adapter costs is still a claim.
+
+## Entry 13 — tooling tests: sealed-hash precondition outgrown, fixed
+
+**Date:** 2026-08-25
+
+**What.** `tests/test_tooling.py` asserted `eval/SEALED.sha256` does not exist
+(a teardown check plus two in-test preconditions). Written at entry 3 when true;
+entry 8 legitimately created the file, and the suite went 2 failed / 1 error.
+The invariant is now expressed as intended: the real sealed hash is snapshotted
+at import and asserted **unchanged** after the run, and the refusal-path test
+uses `--sealed-hash-path` on a nonexistent temp path instead of borrowing the
+real file's absence.
+
+**Why.** A failing suite is noise that hides real failures, and the failure was
+in the tests' precondition, not in the code under test. Never weaken a test to
+make it pass — this change strengthens it: "absent" only defended against a
+test creating the file; "unchanged" also defends against one modifying it.
+
+**Problem it solves.** Surfaced by the entry-12 serving adaptation's check run
+(2 failed, 1 error on clean HEAD, pre-existing).
+
+**Expected impact.** Green suite; sealed-set integrity still enforced.
+
+**Measured impact.** Full suite: 25 passed. Guardrail grep PASS; flag-
+continuation guard PASS.
+
+**Evidence.** This commit's diff; `eval/SEALED.sha256` byte-identical before
+and after the suite (the new teardown assertion is the proof mechanism).

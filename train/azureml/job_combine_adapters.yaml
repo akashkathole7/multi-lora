@@ -1,0 +1,26 @@
+# Merge the two registered adapter models into one folder-shaped model asset,
+# server-side (no laptop round-trip). Register the output as `adapters-both`:
+#   az ml job create -f train/azureml/job_combine_adapters.yaml -g rg-multilora -w mlw-multilora
+#   az ml model create -n adapters-both --type custom_model \
+#     --path azureml://jobs/<JOB>/outputs/artifacts/paths/outputs/adapters -g rg-multilora -w mlw-multilora
+# Rule from entry 10: one physical line per shell command.
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+experiment_name: multilora-serve
+display_name: combine-adapters
+code: ../..
+command: >-
+  set -e;
+  mkdir -p outputs/adapters/meridian outputs/adapters/vantage;
+  cp -r ${{inputs.adapter_meridian}}/. outputs/adapters/meridian/;
+  cp -r ${{inputs.adapter_vantage}}/. outputs/adapters/vantage/;
+  ls -laR outputs/adapters | head -40
+inputs:
+  adapter_meridian:
+    type: custom_model
+    path: azureml:adapter-meridian@latest
+  adapter_vantage:
+    type: custom_model
+    path: azureml:adapter-vantage@latest
+environment:
+  image: vllm/vllm-openai:v0.27.1
+compute: azureml:a100-cluster
