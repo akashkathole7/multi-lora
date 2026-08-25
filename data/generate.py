@@ -523,11 +523,15 @@ def build_openai_caller(args):
                 {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
                 {"role": "user", "content": build_prompt(tenant, goal)},
             ],
-            "max_tokens": MAX_TOKENS,
+            # Reasoning-model families (gpt-5*) reject max_tokens; the flag
+            # selects the parameter name so the same stage drives both kinds.
+            args.max_tokens_param: MAX_TOKENS,
             "stream": False,
         }
         if args.temperature is not None:
             body["temperature"] = args.temperature
+        if args.reasoning_effort is not None:
+            body["reasoning_effort"] = args.reasoning_effort
         return post_openai_chat(url, headers, json.dumps(body).encode("utf-8"))
 
     return call, 0
@@ -769,6 +773,18 @@ def main(argv=None) -> int:
              "POST {base-url}/openai/deployments/{model}/chat/completions"
              "?api-version=VER with an api-key header. Omit for plain OpenAI "
              "style (POST {base-url}/chat/completions, Authorization: Bearer).",
+    )
+    parser.add_argument(
+        "--max-tokens-param", choices=["max_tokens", "max_completion_tokens"],
+        default="max_tokens",
+        help="outputs stage, --provider openai: name of the token-limit field; "
+             "reasoning-model families (gpt-5*) reject max_tokens and need "
+             "max_completion_tokens",
+    )
+    parser.add_argument(
+        "--reasoning-effort",
+        help="outputs stage, --provider openai: reasoning_effort value for "
+             "reasoning models (e.g. minimal); omitted from the request when unset",
     )
     parser.add_argument(
         "--out-dir", default=str(DEFAULT_OUT_DIR), help="directory for stage outputs"

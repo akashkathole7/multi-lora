@@ -380,3 +380,34 @@ Models route (`/models/...`, `Authorization: Bearer`) is needed instead of
 the right field for the chosen deployment. Record the answers here, and record
 the real rejection rate next to them — a cheap generator is only proved cheap
 once the fraction of its output the verifier throws away is known.
+
+## Entry 6 — generate.py: reasoning-model request fields; generator is live
+
+**Date:** 2026-08-25
+
+**What.** Two flags on the `outputs` stage: `--max-tokens-param` picks between
+`max_tokens` and `max_completion_tokens`, and `--reasoning-effort` sends
+`reasoning_effort` when set. Chosen generator: Azure OpenAI `gpt-5-mini`
+(GlobalStandard, 100K TPM, South Central US) with `max_completion_tokens` and
+`reasoning_effort: minimal`.
+
+**Why.** The subscription's Azure OpenAI quota allows no current non-reasoning
+small model: `gpt-4o-mini` has TPM quota but its only version (2024-07-18) is in
+Deprecating state and refuses new deployments; the gpt-5.x family has zero TPM
+quota except `gpt-5-mini` GlobalStandard (500K default). `gpt-5-mini` is a
+reasoning model and rejects `max_tokens`.
+
+**Problem it solves.** Without the field switch every call to the only
+deployable generator would 400. `reasoning_effort: minimal` keeps billed
+reasoning tokens near zero for a task that needs none.
+
+**Expected impact.** Working generation at ~$0.25/M input, $2.00/M output;
+full-dataset projection ~$3 against the $200 credit.
+
+**Measured impact.** Smoke test (1 goal x 2 tenants) against the live
+deployment: 2/2 responses, both passed the deterministic verifier, 0 errors.
+Existing provider self-tests: 5/5 green after the patch.
+
+**Evidence.** `data/logs/pilot_outputs.log` (smoke lines at top),
+`tests/test_generate_openai_provider.py`, README Unverified-items row marked
+RESOLVED.
