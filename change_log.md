@@ -873,3 +873,9 @@ proves the prompt alone does nothing: identical system message, zero passes.
 **Evidence.** `eval/logs/separation_matrix_sealed_sealed_final.json`,
 `eval/logs/separation_raw_sealed_sealed_final.jsonl`, `data/logs/sealed_run.log`,
 `serve/azure/logs/teardown_session1.log`, `reports/iter_04.md`.
+
+*(Correction to entry 14: the serve/azure/logs evidence files named there were
+silently excluded from that commit by a gitignore rule covering the directory;
+git errored on the batch add and the log files were skipped. Caught while
+committing entry 16, when the same error appeared visibly. All six files are
+force-added, secret-scanned, in commit d3b9a96; endpoint.env remains ignored.)*
