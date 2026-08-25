@@ -12,3 +12,4 @@ serve/azure/logs/*
 serve/spark/logs/*
 !serve/azure/logs/.gitkeep
 !serve/spark/logs/.gitkeep
+serve/azure/logs/endpoint.env
