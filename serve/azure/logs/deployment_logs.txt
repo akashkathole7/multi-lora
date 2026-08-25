@@ -1,0 +1,264 @@
+Instance status:
+SystemSetup: Succeeded
+UserContainerImagePull: Succeeded
+ModelDownload: Succeeded
+UserContainerStart: Succeeded
+
+Container events:
+Kind: Pod, Name: Pulling, Type: Normal, Time: 2026-08-25T11:36:24.152208Z, Message: Start pulling container image
+Kind: Pod, Name: Downloading, Type: Normal, Time: 2026-08-25T11:36:24.176171Z, Message: Start downloading models
+Kind: Pod, Name: Pulled, Type: Normal, Time: 2026-08-25T11:39:50.518104Z, Message: Container image is pulled successfully
+Kind: Pod, Name: Downloaded, Type: Normal, Time: 2026-08-25T11:39:50.518104Z, Message: Models are downloaded successfully
+Kind: Pod, Name: Created, Type: Normal, Time: 2026-08-25T11:39:50.53247Z, Message: Created container inference-server
+Kind: Pod, Name: Started, Type: Normal, Time: 2026-08-25T11:39:50.782397Z, Message: Started container inference-server
+Kind: Pod, Name: ContainerReady, Type: Normal, Time: 2026-08-25T11:55:11.567754565Z, Message: Container is ready
+
+Container logs:
+2026-08-25T11:39:50Z start_server: multi-lora vLLM entrypoint
+2026-08-25T11:39:50Z start_server: base model        nvidia/Llama-3.1-Nemotron-Nano-8B-v1
+2026-08-25T11:39:50Z start_server: served base name  base
+2026-08-25T11:39:50Z start_server: adapters          meridian,vantage
+2026-08-25T11:39:50Z start_server: port              8000
+2026-08-25T11:39:50Z start_server: HF_HOME           /mnt/hfcache
+2026-08-25T11:39:50Z start_server: memory strategy   external sampling + explicit phase markers
+2026-08-25T11:39:50Z GPUMEM phase=startup memory.used [MiB]
+2026-08-25T11:39:50Z GPUMEM phase=startup 0 MiB
+2026-08-25T11:39:50Z start_server: nvidia-smi topology / driver
+Tue Aug 25 11:39:50 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.54.14              Driver Version: 550.54.14      CUDA Version: 13.0     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100 80GB PCIe          On  |   00000001:00:00.0 Off |                    0 |
+| N/A   34C    P0             43W /  300W |       0MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+2026-08-25T11:39:50Z start_server: nvidia-smi unavailable
+2026-08-25T11:39:50Z start_server: searching candidate root /mnt/adapters
+2026-08-25T11:39:50Z start_server: adapter root    /mnt/adapters/adapters
+2026-08-25T11:39:50Z start_server: matched pattern <root>/*/meridian/adapter_config.json
+2026-08-25T11:39:50Z start_server: adapter meridian at /mnt/adapters/adapters/meridian (1748220372 bytes on disk)
+2026-08-25T11:39:50Z start_server: adapter vantage at /mnt/adapters/adapters/vantage (1748221939 bytes on disk)
+2026-08-25T11:39:50Z start_server: downloading base weights into /mnt/hfcache (this is the slow step)
+Fetching 16 files:   0%|          | 0/16 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+start_server: snapshot_download -> /mnt/hfcache/hub/models--nvidia--Llama-3.1-Nemotron-Nano-8B-v1/snapshots/54641c1611fcff44fa4865626462445e0a153fc7
+Fetching 16 files:   6%|▋         | 1/16 [00:00<00:02,  6.52it/s]Fetching 16 files:  44%|████▍     | 7/16 [00:00<00:00, 26.13it/s]Fetching 16 files:  69%|██████▉   | 11/16 [00:00<00:00, 30.88it/s]Fetching 16 files:  81%|████████▏ | 13/16 [00:20<00:00, 30.88it/s]Fetching 16 files:  88%|████████▊ | 14/16 [00:28<00:06,  3.08s/it]Fetching 16 files:  94%|█████████▍| 15/16 [00:28<00:02,  2.74s/it]Fetching 16 files: 100%|██████████| 16/16 [00:28<00:00,  1.81s/it]
+2026-08-25T11:40:20Z start_server: base weights on disk after 30s
+2026-08-25T11:40:20Z GPUMEM phase=after_base_download memory.used [MiB]
+2026-08-25T11:40:20Z GPUMEM phase=after_base_download 0 MiB
+2026-08-25T11:40:20Z start_server: memory sampler running every 30s (pid 167)
+2026-08-25T11:40:20Z start_server: exec vllm serve nvidia/Llama-3.1-Nemotron-Nano-8B-v1 --served-model-name base --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.90 --max-model-len 4096 --enable-lora --max-lora-rank 16 --max-loras 4 --max-cpu-loras 8 --lora-modules meridian=/mnt/adapters/adapters/meridian vantage=/mnt/adapters/adapters/vantage
+2026-08-25T11:40:20Z start_server: polling http://127.0.0.1:8000/health for up to 1800s
+2026-08-25T11:40:20Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:40:20Z GPUMEM phase=periodic 0 MiB
+(APIServer pid=172) INFO 08-25 11:40:39 [api_utils.py:345] 
+(APIServer pid=172) INFO 08-25 11:40:39 [api_utils.py:345]        █     █     █▄   ▄█
+(APIServer pid=172) INFO 08-25 11:40:39 [api_utils.py:345]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.27.1
+(APIServer pid=172) INFO 08-25 11:40:39 [api_utils.py:345]   █▄█▀ █     █     █     █  model   nvidia/Llama-3.1-Nemotron-Nano-8B-v1
+(APIServer pid=172) INFO 08-25 11:40:39 [api_utils.py:345]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=172) INFO 08-25 11:40:39 [api_utils.py:345] 
+(APIServer pid=172) INFO 08-25 11:40:39 [api_utils.py:273] non-default args: {'model_tag': 'nvidia/Llama-3.1-Nemotron-Nano-8B-v1', 'lora_modules': [LoRAModulePath(name='meridian', path='/mnt/adapters/adapters/meridian', base_model_name=None, is_3d_lora_weight=False), LoRAModulePath(name='vantage', path='/mnt/adapters/adapters/vantage', base_model_name=None, is_3d_lora_weight=False)], 'host': '0.0.0.0', 'model': 'nvidia/Llama-3.1-Nemotron-Nano-8B-v1', 'max_model_len': 4096, 'served_model_name': ['base'], 'gpu_memory_utilization': 0.9, 'enable_lora': True, 'max_loras': 4, 'max_cpu_loras': 8}
+2026-08-25T11:40:50Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:40:50Z GPUMEM phase=periodic 5 MiB
+(APIServer pid=172) INFO 08-25 11:40:55 [model.py:645] Resolved architecture: LlamaForCausalLM
+(APIServer pid=172) INFO 08-25 11:40:55 [model.py:1883] Using max model len 4096
+(APIServer pid=172) INFO 08-25 11:40:55 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=172) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(EngineCore pid=312) INFO 08-25 11:41:05 [core.py:121] Initializing a V1 LLM engine (v0.27.1) with config: model='nvidia/Llama-3.1-Nemotron-Nano-8B-v1', speculative_config=None, tokenizer='nvidia/Llama-3.1-Nemotron-Nano-8B-v1', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=4096, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=base, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [2048], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 512, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto')
+(EngineCore pid=312) INFO 08-25 11:41:05 [network_utils.py:205] Port 8000 is already in use, trying port 8001
+(EngineCore pid=312) INFO 08-25 11:41:07 [parallel_state.py:1640] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://10.66.0.2:8001 backend=nccl
+(EngineCore pid=312) INFO 08-25 11:41:07 [parallel_state.py:1977] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(EngineCore pid=312) INFO 08-25 11:41:07 [gpu_worker.py:385] Using V2 Model Runner
+(EngineCore pid=312) INFO 08-25 11:41:08 [model_runner.py:308] Loading model from scratch...
+(EngineCore pid=312) INFO 08-25 11:41:08 [cuda.py:482] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(EngineCore pid=312) INFO 08-25 11:41:08 [flash_attn.py:789] Using FlashAttention version 2
+(EngineCore pid=312) INFO 08-25 11:41:09 [weight_utils.py:867] Filesystem type for checkpoints: OVERLAY. Checkpoint size: 14.96 GiB. Available RAM: 191.17 GiB.
+(EngineCore pid=312) INFO 08-25 11:41:09 [weight_utils.py:890] Auto-prefetch is disabled because the filesystem (OVERLAY) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(EngineCore pid=312) Loading safetensors checkpoint shards:   0% Completed | 0/4 [00:00<?, ?it/s]
+(EngineCore pid=312) Loading safetensors checkpoint shards:  25% Completed | 1/4 [00:00<00:01,  1.81it/s]
+(EngineCore pid=312) Loading safetensors checkpoint shards:  50% Completed | 2/4 [00:01<00:01,  1.51it/s]
+(EngineCore pid=312) Loading safetensors checkpoint shards:  75% Completed | 3/4 [00:01<00:00,  1.51it/s]
+(EngineCore pid=312) Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:02<00:00,  1.98it/s]
+(EngineCore pid=312) Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:02<00:00,  1.80it/s]
+(EngineCore pid=312) 
+(EngineCore pid=312) INFO 08-25 11:41:12 [default_loader.py:430] Loading weights took 2.26 seconds
+(EngineCore pid=312) INFO 08-25 11:41:12 [punica_selector.py:20] Using PunicaWrapperGPU.
+(EngineCore pid=312) INFO 08-25 11:41:12 [model_runner.py:329] Model loading took 15.36 GiB and 4.264383 seconds
+(EngineCore pid=312) INFO 08-25 11:41:12 [topk_topp_sampler.py:62] Using FlashInfer for top-p & top-k sampling.
+2026-08-25T11:41:20Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:41:20Z GPUMEM phase=periodic 16406 MiB
+(EngineCore pid=312) INFO 08-25 11:41:25 [backends.py:1094] Using cache directory: /root/.cache/vllm/torch_compile_cache/727ed702fd/rank_0_0/backbone for vLLM's torch.compile
+(EngineCore pid=312) INFO 08-25 11:41:25 [backends.py:1155] Dynamo bytecode transform time: 10.16 s
+(EngineCore pid=312) INFO 08-25 11:41:34 [backends.py:393] Compiling a graph for compile range (1, 2048) takes 9.61 s
+(EngineCore pid=312) INFO 08-25 11:41:40 [backends.py:920] collected artifacts: 33 entries, 3 artifacts, 5330644 bytes total
+(EngineCore pid=312) INFO 08-25 11:41:40 [decorators.py:708] saved AOT compiled function to /root/.cache/vllm/torch_compile_cache/torch_aot_compile/1f74aed3165fc4368076b70394a2c53e23bff4378b90124f1a7364f3ee5bb8fc/rank_0_0/model
+(EngineCore pid=312) INFO 08-25 11:41:40 [monitor.py:53] torch.compile took 25.76 s in total
+(EngineCore pid=312) WARNING 08-25 11:41:40 [utils.py:279] Using default LoRA kernel configs
+(EngineCore pid=312) INFO 08-25 11:41:42 [monitor.py:81] Initial profiling/warmup run took 2.11 s
+(EngineCore pid=312) INFO 08-25 11:41:44 [gpu_worker.py:563] Available KV cache memory: 54.52 GiB
+(EngineCore pid=312) INFO 08-25 11:41:44 [kv_cache_utils.py:2235] GPU KV cache size: 446,656 tokens
+(EngineCore pid=312) INFO 08-25 11:41:44 [kv_cache_utils.py:2236] Maximum concurrency for 4,096 tokens per request: 109.05x
+2026-08-25T11:41:50Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:41:50Z GPUMEM phase=periodic 72726 MiB
+(EngineCore pid=312) Capturing CUDA graphs (PIECEWISE):   0%|          | 0/102 [00:00<?, ?it/s]Capturing CUDA graphs (PIECEWISE):   2%|▏         | 2/102 [00:00<00:13,  7.35it/s]Capturing CUDA graphs (PIECEWISE):   4%|▍         | 4/102 [00:00<00:11,  8.78it/s]Capturing CUDA graphs (PIECEWISE):   6%|▌         | 6/102 [00:00<00:10,  9.31it/s]Capturing CUDA graphs (PIECEWISE):   8%|▊         | 8/102 [00:00<00:09,  9.49it/s]Capturing CUDA graphs (PIECEWISE):  10%|▉         | 10/102 [00:01<00:09,  9.64it/s]Capturing CUDA graphs (PIECEWISE):  12%|█▏        | 12/102 [00:01<00:09,  9.82it/s]Capturing CUDA graphs (PIECEWISE):  14%|█▎        | 14/102 [00:01<00:08,  9.95it/s]Capturing CUDA graphs (PIECEWISE):  16%|█▌        | 16/102 [00:01<00:08,  9.99it/s]Capturing CUDA graphs (PIECEWISE):  18%|█▊        | 18/102 [00:01<00:08, 10.23it/s]Capturing CUDA graphs (PIECEWISE):  20%|█▉        | 20/102 [00:02<00:07, 10.41it/s]Capturing CUDA graphs (PIECEWISE):  22%|██▏       | 22/102 [00:02<00:07, 10.57it/s]Capturing CUDA graphs (PIECEWISE):  24%|██▎       | 24/102 [00:02<00:07, 10.67it/s]Capturing CUDA graphs (PIECEWISE):  25%|██▌       | 26/102 [00:02<00:07, 10.77it/s]Capturing CUDA graphs (PIECEWISE):  27%|██▋       | 28/102 [00:02<00:06, 10.85it/s]Capturing CUDA graphs (PIECEWISE):  29%|██▉       | 30/102 [00:02<00:06, 10.81it/s]Capturing CUDA graphs (PIECEWISE):  31%|███▏      | 32/102 [00:03<00:06, 10.79it/s]Capturing CUDA graphs (PIECEWISE):  33%|███▎      | 34/102 [00:03<00:06, 11.06it/s]Capturing CUDA graphs (PIECEWISE):  35%|███▌      | 36/102 [00:05<00:24,  2.71it/s]Capturing CUDA graphs (PIECEWISE):  37%|███▋      | 38/102 [00:05<00:18,  3.53it/s]Capturing CUDA graphs (PIECEWISE):  39%|███▉      | 40/102 [00:05<00:13,  4.43it/s]Capturing CUDA graphs (PIECEWISE):  41%|████      | 42/102 [00:05<00:11,  5.45it/s]Capturing CUDA graphs (PIECEWISE):  43%|████▎     | 44/102 [00:06<00:08,  6.46it/s]Capturing CUDA graphs (PIECEWISE):  45%|████▌     | 46/102 [00:06<00:07,  7.35it/s]Capturing CUDA graphs (PIECEWISE):  47%|████▋     | 48/102 [00:06<00:06,  8.24it/s]Capturing CUDA graphs (PIECEWISE):  49%|████▉     | 50/102 [00:06<00:05,  8.92it/s]Capturing CUDA graphs (PIECEWISE):  51%|█████     | 52/102 [00:06<00:05,  9.55it/s]Capturing CUDA graphs (PIECEWISE):  53%|█████▎    | 54/102 [00:06<00:04, 10.14it/s]Capturing CUDA graphs (PIECEWISE):  55%|█████▍    | 56/102 [00:07<00:04, 10.58it/s]Capturing CUDA graphs (PIECEWISE):  57%|█████▋    | 58/102 [00:07<00:04, 10.72it/s]Capturing CUDA graphs (PIECEWISE):  59%|█████▉    | 60/102 [00:07<00:03, 10.96it/s]Capturing CUDA graphs (PIECEWISE):  61%|██████    | 62/102 [00:07<00:03, 11.16it/s]Capturing CUDA graphs (PIECEWISE):  63%|██████▎   | 64/102 [00:07<00:03, 11.35it/s]Capturing CUDA graphs (PIECEWISE):  65%|██████▍   | 66/102 [00:07<00:03, 11.23it/s]Capturing CUDA graphs (PIECEWISE):  67%|██████▋   | 68/102 [00:09<00:07,  4.34it/s]Capturing CUDA graphs (PIECEWISE):  69%|██████▊   | 70/102 [00:10<00:10,  3.05it/s]Capturing CUDA graphs (PIECEWISE):  71%|███████   | 72/102 [00:10<00:07,  3.93it/s]Capturing CUDA graphs (PIECEWISE):  73%|███████▎  | 74/102 [00:10<00:05,  4.93it/s]Capturing CUDA graphs (PIECEWISE):  75%|███████▍  | 76/102 [00:10<00:04,  5.97it/s]Capturing CUDA graphs (PIECEWISE):  76%|███████▋  | 78/102 [00:10<00:03,  7.01it/s]Capturing CUDA graphs (PIECEWISE):  78%|███████▊  | 80/102 [00:11<00:02,  7.95it/s]Capturing CUDA graphs (PIECEWISE):  80%|████████  | 82/102 [00:11<00:02,  8.75it/s]Capturing CUDA graphs (PIECEWISE):  82%|████████▏ | 84/102 [00:11<00:01,  9.51it/s]Capturing CUDA graphs (PIECEWISE):  84%|████████▍ | 86/102 [00:11<00:01, 10.07it/s]Capturing CUDA graphs (PIECEWISE):  86%|████████▋ | 88/102 [00:11<00:01, 10.50it/s]Capturing CUDA graphs (PIECEWISE):  88%|████████▊ | 90/102 [00:11<00:01, 10.66it/s]Capturing CUDA graphs (PIECEWISE):  90%|█████████ | 92/102 [00:12<00:00, 10.76it/s]Capturing CUDA graphs (PIECEWISE):  92%|█████████▏| 94/102 [00:12<00:00, 10.91it/s]Capturing CUDA graphs (PIECEWISE):  94%|█████████▍| 96/102 [00:12<00:00, 11.01it/s]Capturing CUDA graphs (PIECEWISE):  96%|█████████▌| 98/102 [00:12<00:00, 11.10it/s]Capturing CUDA graphs (PIECEWISE):  98%|█████████▊| 100/102 [00:12<00:00, 11.30it/s]Capturing CUDA graphs (PIECEWISE): 100%|██████████| 102/102 [00:15<00:00,  2.26it/s]Capturing CUDA graphs (PIECEWISE): 100%|██████████| 102/102 [00:15<00:00,  6.65it/s]
+(EngineCore pid=312) Capturing CUDA graphs (FULL):   0%|          | 0/70 [00:00<?, ?it/s]Capturing CUDA graphs (FULL):   3%|▎         | 2/70 [00:00<00:04, 14.53it/s]Capturing CUDA graphs (FULL):   6%|▌         | 4/70 [00:00<00:04, 14.25it/s]Capturing CUDA graphs (FULL):   9%|▊         | 6/70 [00:00<00:04, 14.56it/s]Capturing CUDA graphs (FULL):  11%|█▏        | 8/70 [00:00<00:04, 14.46it/s]Capturing CUDA graphs (FULL):  14%|█▍        | 10/70 [00:00<00:04, 14.59it/s]Capturing CUDA graphs (FULL):  17%|█▋        | 12/70 [00:00<00:03, 14.65it/s]Capturing CUDA graphs (FULL):  20%|██        | 14/70 [00:00<00:03, 14.76it/s]Capturing CUDA graphs (FULL):  23%|██▎       | 16/70 [00:01<00:03, 14.77it/s]Capturing CUDA graphs (FULL):  26%|██▌       | 18/70 [00:01<00:03, 14.86it/s]Capturing CUDA graphs (FULL):  29%|██▊       | 20/70 [00:01<00:03, 14.75it/s]Capturing CUDA graphs (FULL):  31%|███▏      | 22/70 [00:01<00:03, 14.89it/s]Capturing CUDA graphs (FULL):  34%|███▍      | 24/70 [00:01<00:03, 14.82it/s]Capturing CUDA graphs (FULL):  37%|███▋      | 26/70 [00:01<00:02, 14.87it/s]Capturing CUDA graphs (FULL):  40%|████      | 28/70 [00:01<00:02, 14.95it/s]Capturing CUDA graphs (FULL):  43%|████▎     | 30/70 [00:02<00:02, 15.02it/s]Capturing CUDA graphs (FULL):  46%|████▌     | 32/70 [00:02<00:02, 15.11it/s]Capturing CUDA graphs (FULL):  49%|████▊     | 34/70 [00:02<00:02, 15.03it/s]Capturing CUDA graphs (FULL):  51%|█████▏    | 36/70 [00:02<00:02, 14.99it/s]Capturing CUDA graphs (FULL):  54%|█████▍    | 38/70 [00:02<00:02, 14.94it/s]Capturing CUDA graphs (FULL):  57%|█████▋    | 40/70 [00:02<00:02, 14.72it/s]Capturing CUDA graphs (FULL):  60%|██████    | 42/70 [00:02<00:01, 14.72it/s]Capturing CUDA graphs (FULL):  63%|██████▎   | 44/70 [00:02<00:01, 14.48it/s]Capturing CUDA graphs (FULL):  66%|██████▌   | 46/70 [00:03<00:01, 14.46it/s]Capturing CUDA graphs (FULL):  69%|██████▊   | 48/70 [00:03<00:01, 14.15it/s]Capturing CUDA graphs (FULL):  71%|███████▏  | 50/70 [00:03<00:01, 14.38it/s]Capturing CUDA graphs (FULL):  74%|███████▍  | 52/70 [00:03<00:01, 14.59it/s]Capturing CUDA graphs (FULL):  77%|███████▋  | 54/70 [00:03<00:01, 14.63it/s]Capturing CUDA graphs (FULL):  80%|████████  | 56/70 [00:03<00:00, 14.36it/s]Capturing CUDA graphs (FULL):  83%|████████▎ | 58/70 [00:03<00:00, 14.60it/s]Capturing CUDA graphs (FULL):  86%|████████▌ | 60/70 [00:04<00:00, 14.75it/s]Capturing CUDA graphs (FULL):  89%|████████▊ | 62/70 [00:04<00:00, 14.57it/s]Capturing CUDA graphs (FULL):  91%|█████████▏| 64/70 [00:04<00:00, 14.78it/s]Capturing CUDA graphs (FULL):  94%|█████████▍| 66/70 [00:04<00:00, 14.61it/s]Capturing CUDA graphs (FULL):  97%|█████████▋| 68/70 [00:04<00:00, 14.70it/s]Capturing CUDA graphs (FULL): 100%|██████████| 70/70 [00:04<00:00, 14.56it/s]Capturing CUDA graphs (FULL): 100%|██████████| 70/70 [00:04<00:00, 14.68it/s]
+(EngineCore pid=312) INFO 08-25 11:42:05 [model_runner.py:791] Graph capturing finished in 21 secs, took 1.19 GiB
+(EngineCore pid=312) INFO 08-25 11:42:05 [gpu_worker.py:789] Free memory on device (78.72/79.14 GiB) on startup. Desired GPU memory utilization is (0.9, 71.22 GiB). Actual usage is 15.66 GiB for consumed memory (weights + non-torch), 1.04 GiB for peak activation, and 1.19 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=57107613594` (53.19 GiB) to fit into requested memory, or `--kv-cache-memory=65156115968` (60.68 GiB) to fully utilize gpu memory. Current kv cache memory in use is 54.52 GiB.
+(EngineCore pid=312) INFO 08-25 11:42:08 [jit_monitor.py:79] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+(EngineCore pid=312) INFO 08-25 11:42:09 [core.py:348] init engine (profile, create kv cache, warmup model) took 56.41 s (compilation: 25.76 s)
+(EngineCore pid=312) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(EngineCore pid=312) INFO 08-25 11:42:10 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=172) INFO 08-25 11:42:10 [api_server.py:678] Supported tasks: ['generate']
+(APIServer pid=172) INFO 08-25 11:42:11 [serving.py:216] Loaded new LoRA adapter: name 'meridian', path '/mnt/adapters/adapters/meridian'
+(APIServer pid=172) INFO 08-25 11:42:11 [serving.py:216] Loaded new LoRA adapter: name 'vantage', path '/mnt/adapters/adapters/vantage'
+(APIServer pid=172) INFO 08-25 11:42:13 [hf.py:540] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+(APIServer pid=172) WARNING 08-25 11:42:13 [model.py:1637] Default vLLM sampling parameters have been overridden by the model's `generation_config.json`: `{'temperature': 0.6, 'top_p': 0.95}`. If this is not intended, please relaunch vLLM instance with `--generation-config vllm`.
+(APIServer pid=172) INFO 08-25 11:42:14 [api_server.py:682] Starting vLLM server on http://0.0.0.0:8000
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:37] Available routes are:
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /openapi.json, Methods: GET, HEAD
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /docs, Methods: GET, HEAD
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /docs/oauth2-redirect, Methods: GET, HEAD
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /redoc, Methods: GET, HEAD
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /load, Methods: GET
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /version, Methods: GET
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /health, Methods: GET
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /metrics, Methods: GET
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /tokenize, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /detokenize, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/models, Methods: GET
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /ping, Methods: GET
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /ping, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /invocations, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/chat/completions, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/chat/completions/batch, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/responses, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/responses/{response_id}, Methods: GET
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/responses/{response_id}/cancel, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/completions, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/messages, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/messages/count_tokens, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /generative_scoring, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /scale_elastic_ep, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /is_scaling_elastic_ep, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/chat/completions/render, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/completions/render, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/chat/completions/derender, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /v1/completions/derender, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:46] Route: /inference/v1/generate, Methods: POST
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:99] API server: waiting for HTTP server to start
+(APIServer pid=172) INFO:     Started server process [172]
+(APIServer pid=172) INFO:     Waiting for application startup.
+(APIServer pid=172) INFO:     Application startup complete.
+(APIServer pid=172) INFO 08-25 11:42:14 [launcher.py:105] API server: HTTP server started
+(APIServer pid=172) INFO:     127.0.0.1:49146 - "GET /health HTTP/1.1" 200 OK
+2026-08-25T11:42:16Z start_server: /health answered after ~115s
+2026-08-25T11:42:16Z GPUMEM phase=server_ready_base_resident memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=server_ready_base_resident 74002 MiB
+2026-08-25T11:42:16Z GPUMEM phase=before_first_request_meridian memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=before_first_request_meridian 74002 MiB
+(APIServer pid=172) WARNING 08-25 11:42:16 [input_processor.py:166] vLLM has deprecated support for supporting different tokenizers for different LoRAs. By default, vLLM uses base model's tokenizer. If you are using a LoRA with its own tokenizer, consider specifying `--tokenizer [lora_path]` to use the LoRA tokenizer.
+(APIServer pid=172) INFO:     127.0.0.1:49156 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+2026-08-25T11:42:16Z start_server: warm meridian http=200 elapsed_ms=49
+2026-08-25T11:42:16Z GPUMEM phase=after_first_request_meridian memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=after_first_request_meridian 74002 MiB
+2026-08-25T11:42:16Z GPUMEM phase=before_first_request_vantage memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=before_first_request_vantage 74002 MiB
+(APIServer pid=172) INFO:     127.0.0.1:49164 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+2026-08-25T11:42:16Z start_server: warm vantage http=200 elapsed_ms=32
+2026-08-25T11:42:16Z GPUMEM phase=after_first_request_vantage memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=after_first_request_vantage 74002 MiB
+2026-08-25T11:42:16Z start_server: adapter warm-up done. The GPUMEM deltas around
+2026-08-25T11:42:16Z start_server: before_first_request_* / after_first_request_* are the
+2026-08-25T11:42:16Z start_server: per-adapter GPU footprint.
+2026-08-25T11:42:16Z start_server: serving. models available: base meridian vantage
+2026-08-25T11:42:16Z GPUMEM phase=steady_state memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=steady_state 74002 MiB
+2026-08-25T11:42:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:42:21Z GPUMEM phase=periodic 74002 MiB
+(APIServer pid=172) INFO 08-25 11:42:24 [loggers.py:310] Engine 000: Avg prompt throughput: 2.9 tokens/s, Avg generation throughput: 0.1 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+(APIServer pid=172) INFO 08-25 11:42:34 [loggers.py:310] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+2026-08-25T11:42:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:42:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:43:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:43:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:43:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:43:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:44:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:44:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:44:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:44:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:45:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:45:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:45:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:45:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:46:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:46:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:46:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:46:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:47:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:47:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:47:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:47:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:48:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:48:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:48:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:48:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:49:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:49:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:49:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:49:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:50:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:50:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:50:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:50:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:51:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:51:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:51:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:51:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:52:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:52:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:52:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:52:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:53:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:53:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:53:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:53:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:54:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:54:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:54:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:54:51Z GPUMEM phase=periodic 74002 MiB
+(APIServer pid=172) INFO:     10.66.0.1:50888 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=172) INFO:     10.66.0.1:44968 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=172) INFO:     10.66.0.1:44976 - "GET /health HTTP/1.1" 200 OK
+2026-08-25T11:55:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:55:21Z GPUMEM phase=periodic 74002 MiB
+(APIServer pid=172) INFO:     10.66.0.1:60138 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=172) INFO:     10.66.0.1:60150 - "GET /health HTTP/1.1" 200 OK
+2026-08-25T11:55:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:55:51Z GPUMEM phase=periodic 74002 MiB
+(APIServer pid=172) INFO:     10.66.0.1:36218 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=172) INFO:     10.66.0.1:36234 - "GET /health HTTP/1.1" 200 OK
+2026-08-25T11:56:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:56:21Z GPUMEM phase=periodic 74002 MiB
+(APIServer pid=172) INFO:     10.66.0.1:48986 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=172) INFO:     10.66.0.1:48990 - "POST /v1/chat/completions/v1/chat/completions HTTP/1.1" 404 Not Found
+(APIServer pid=172) INFO:     10.66.0.1:49012 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=172) INFO:     10.66.0.1:49022 - "GET /health HTTP/1.1" 200 OK
+2026-08-25T11:56:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:56:51Z GPUMEM phase=periodic 74002 MiB
+(APIServer pid=172) INFO 08-25 11:56:54 [loggers.py:310] Engine 000: Avg prompt throughput: 5.5 tokens/s, Avg generation throughput: 38.4 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.1%, Prefix cache hit rate: 0.0%
+(APIServer pid=172) INFO:     10.66.0.1:48998 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=172) INFO 08-25 11:57:04 [loggers.py:310] Engine 000: Avg prompt throughput: 3.5 tokens/s, Avg generation throughput: 62.0 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+(APIServer pid=172) INFO:     10.66.0.1:35330 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=172) INFO 08-25 11:57:14 [loggers.py:310] Engine 000: Avg prompt throughput: 3.5 tokens/s, Avg generation throughput: 67.6 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+(APIServer pid=172) INFO:     10.66.0.1:35330 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=172) INFO:     10.66.0.1:51780 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=172) INFO:     10.66.0.1:51790 - "GET /health HTTP/1.1" 200 OK
+
+

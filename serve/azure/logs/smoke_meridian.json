@@ -1,0 +1,94 @@
+{
+  "initiative": "Reduce unplanned downtime by 30% across three sites within one year",
+  "work_packages": [
+    {
+      "id": "WP-01",
+      "title": "Baseline downtime measurement and root-cause analysis",
+      "owner_role": "Reliability Engineering Lead",
+      "duration_quarters": 1,
+      "deliverable": "Consolidated baseline report with root-cause taxonomy and prioritized failure modes"
+    },
+    {
+      "id": "WP-02",
+      "title": "Targeted preventive maintenance upgrades and control updates",
+      "owner_role": "Maintenance Engineering Manager",
+      "duration_quarters": 2,
+      "deliverable": "Implemented upgrades and control changes with documented deliverable checklists and sign-off records"
+    },
+    {
+      "id": "WP-03",
+      "title": "Emergency response and fault detection enhancement",
+      "owner_role": "Operations Resilience Lead",
+      "duration_quarters": 2,
+      "deliverable": "Revised response procedures, enhanced detection logic and training materials as a deliverable"
+    },
+    {
+      "id": "WP-04",
+      "title": "Non-conformance reduction and continuous monitoring",
+      "owner_role": "Quality Assurance Manager",
+      "duration_quarters": 1,
+      "deliverable": "Non-conformance register with corrective action plans and monthly monitoring dashboard"
+    },
+    {
+      "id": "WP-05",
+      "title": "Performance validation and institutionalize controls",
+      "owner_role": "Plant General Manager",
+      "duration_quarters": 1,
+      "deliverable": "Validation report demonstrating downtime reduction, control handover and final sign-off package"
+    }
+  ],
+  "approval_chain": [
+    {
+      "gate": "G1",
+      "name": "Initiation gate review",
+      "approver_role": "Head of Operations",
+      "criteria": "Approve baseline report, scope and initial work package plan; confirm measurement methodology and resource commitment"
+    },
+    {
+      "gate": "G2",
+      "name": "Implementation gate review",
+      "approver_role": "Director of Engineering",
+      "criteria": "Review completed upgrades, control changes and training; verify no outstanding deviations and permit go-live sign-off"
+    },
+    {
+      "gate": "G3",
+      "name": "Validation gate review",
+      "approver_role": "Quality Director",
+      "criteria": "Accept performance validation demonstrating >=30% reduction in unplanned downtime and confirm non-conformance closure metrics"
+    },
+    {
+      "gate": "G4",
+      "name": "Closure and institutionalisation gate review",
+      "approver_role": "Chief Operating Officer",
+      "criteria": "Final sign-off on deliverable package, institutional controls and operational handover with documented sign-off"
+    }
+  ],
+  "compliance_notes": [
+    "All activities will follow regulated change control and document retention policies; deviations must be logged and approved at gate review",
+    "Data collection and analysis will comply with internal data governance and external audit requirements",
+    "Non-conformance handling will follow established corrective action procedures with traceable evidence"
+  ],
+  "risks": [
+    {
+      "risk": "Insufficient data quality undermines baseline and measurement of downtime reduction",
+      "mitigation": "Implement data validation steps, source reconciliation and independent verification prior to G1",
+      "severity": "high"
+    },
+    {
+      "risk": "Resource constraints delay implementation of preventive maintenance upgrades",
+      "mitigation": "Secure cross-site resource allocation in WP-01 and escalate at G1 if timelines slip",
+      "severity": "medium"
+    },
+    {
+      "risk": "Operational resistance to new controls and procedures",
+      "mitigation": "Engage site leadership early, include training in WP-03 and require sign-off at G2",
+      "severity": "medium"
+    },
+    {
+      "risk": "Unaddressed non-conformances persist after validation",
+      "mitigation": "Use WP-04 to close non-conformances with corrective actions and monitor via dashboard",
+      "severity": "low"
+    }
+  ],
+  "timeline_horizon": "12 months from initiation, aligned to quarterly gate reviews with final sign-off at end of 12 months"
+}

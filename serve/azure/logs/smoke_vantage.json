@@ -1,0 +1,71 @@
+{
+  "initiative": "Reduce unplanned downtime across three sites by 30% within 12 months",
+  "okrs": [
+    {
+      "objective": "Cut unplanned downtime across sites",
+      "key_results": [
+        "Reduce total unplanned downtime minutes by 30% from baseline",
+        "Decrease mean time to detect (MTTD) by 40%",
+        "Lower mean time to restore (MTTR) by 25%"
+      ]
+    },
+    {
+      "objective": "Improve operational resilience and visibility",
+      "key_results": [
+        "Implement real-time monitoring with 95% coverage across sites",
+        "Deploy automated alerting and runbook automation for top 5 failure modes"
+      ]
+    }
+  ],
+  "sprint_plan": [
+    {
+      "sprint": 1,
+      "weeks": "1-2",
+      "focus": "Baseline current downtime, collect historical data and define top failure modes",
+      "owner": "SRE lead",
+      "ships": "Downtime baseline report, prioritized failure-mode list"
+    },
+    {
+      "sprint": 2,
+      "weeks": "3-4",
+      "focus": "Instrument monitoring gaps and add missing telemetry across sites",
+      "owner": "Observability owner",
+      "ships": "Expanded monitoring coverage (95% target) and dashboards"
+    },
+    {
+      "sprint": 3,
+      "weeks": "5-6",
+      "focus": "Build alerting and on-call runbooks for top 5 failure modes",
+      "owner": "Incident owner",
+      "ships": "Automated alerts and runbooks for top failure modes"
+    },
+    {
+      "sprint": 4,
+      "weeks": "7-8",
+      "focus": "Implement automated remediation for highest-impact remediation paths",
+      "owner": "Automation owner",
+      "ships": "Automated remediation playbooks for top remediation actions"
+    },
+    {
+      "sprint": 5,
+      "weeks": "9-10",
+      "focus": "Run simulated incidents and iterate on alerts and runbooks",
+      "owner": "SRE lead",
+      "ships": "Post-simulated incident run-up, updated runbooks and alert thresholds"
+    },
+    {
+      "sprint": 6,
+      "weeks": "11-12",
+      "focus": "Measure impact, validate reductions, and hand off steady-state monitoring",
+      "owner": "Program owner",
+      "ships": "Final downtime reduction report and handoff to ops with SLAs"
+    }
+  ],
+  "blockers": [
+    "Incomplete historical telemetry and inconsistent data sources",
+    "Limited automation capacity and cross-team bandwidth for sprint work",
+    "Dependency on third-party vendor for critical monitoring components"
+  ],
+  "success_metric": "30% reduction in total unplanned downtime minutes versus baseline within 12 weeks measured by downtime metric",
+  "timeline_weeks": 12
+}

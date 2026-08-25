@@ -849,3 +849,27 @@ something.
 **Evidence.** `bench/logs/swap_time_summary_20260825T122412363Z.json` +
 `..._122801312Z.json` and their raw JSONL, `data/logs/swap_meridian_endpoint.log`,
 `data/logs/swap_vantage_endpoint.log`.
+
+## Entry 16 — Stage 4 sealed matrix: 100/0/0; endpoint torn down, verified
+
+**Date:** 2026-08-25
+
+**What.** Ran `eval/separation.py --sealed` once against the live endpoint:
+sha256 of `eval/sealed_goals.jsonl` checked against `eval/SEALED.sha256` before
+any request; 160 sealed goals x 3 arms = 480 requests, concurrency 4,
+0 HTTP errors, wall 1151.65s. Then `deploy.sh teardown`: deployment and
+endpoint deleted, and the endpoint list read back empty; cluster node count
+read back zero.
+
+**Why.** Objective #1 on unseen data is the acceptance criterion; teardown is
+the budget guardrail.
+
+**Measured impact.** base 0.0% (0/160) on both contracts; meridian 100.0%
+(160/160) own / 0.0% rival; vantage 100.0% (160/160) own / 0.0% rival.
+Thresholds were >=90 / <=10 / <=10; every cell clears with maximum margin, and
+the dev-set's two vantage misses did not recur on sealed data. The base row
+proves the prompt alone does nothing: identical system message, zero passes.
+
+**Evidence.** `eval/logs/separation_matrix_sealed_sealed_final.json`,
+`eval/logs/separation_raw_sealed_sealed_final.jsonl`, `data/logs/sealed_run.log`,
+`serve/azure/logs/teardown_session1.log`, `reports/iter_04.md`.

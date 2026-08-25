@@ -1,0 +1,28 @@
+
+=== az account set ===
+Azure subscription 1	97540688-009b-4a05-bea2-5cdea4cfe222
+
+=== teardown ===
+2026-08-25T12:50:49Z deleting deployment blue (this is what stops the billing)
+2026-08-25T12:50:54Z deployment delete returned nonzero (it may already be gone)
+2026-08-25T12:50:54Z deleting endpoint multilora-ep
+.......................................................
+=== VERIFY deletion ===
+endpoints still present in mlw-multilora:
+  (none)
+
+==========================================================================
+  TEARDOWN CONFIRMED
+
+  Endpoint multilora-ep is gone from the workspace listing.
+  GPU billing for this endpoint has stopped.
+
+  Still costing a little (rupees per month, not per hour):
+    - the workspace's storage account, key vault and container registry
+    - the registered model assets (adapters-both and the per-tenant ones)
+  To remove everything including those:
+      /home/aakash/.venvs/azcli/bin/az group delete --name rg-multilora --yes
+
+  REMINDER: an idle A100 endpoint bills ~Rs 320 per hour. It does not
+  matter that no requests were sent. Never leave one up overnight.
+==========================================================================

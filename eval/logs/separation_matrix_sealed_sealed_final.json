@@ -1,0 +1,73 @@
+{
+  "run_id": "sealed_final",
+  "sealed": true,
+  "raw_log": "eval/logs/separation_raw_sealed_sealed_final.jsonl",
+  "goals_file": "eval/sealed_goals.jsonl",
+  "goals_sha256": "d54319eb6b8f78e314bec265ce052af8b3d1fe1192ddd5a15bffb4586d47fb15",
+  "n_goals": 160,
+  "endpoint": "https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions",
+  "arms": [
+    "base",
+    "meridian",
+    "vantage"
+  ],
+  "served_names": {
+    "base": "base",
+    "meridian": "meridian",
+    "vantage": "vantage"
+  },
+  "max_concurrency": 4,
+  "system_message": "detailed thinking off",
+  "wall_time_s": 1151.651,
+  "base_leak_warning": false,
+  "matrix": {
+    "base": {
+      "meridian_pass_rate": 0.0,
+      "vantage_pass_rate": 0.0,
+      "n": 160,
+      "errors": 0,
+      "meridian_pass_count": 0,
+      "vantage_pass_count": 0
+    },
+    "meridian": {
+      "meridian_pass_rate": 1.0,
+      "vantage_pass_rate": 0.0,
+      "n": 160,
+      "errors": 0,
+      "meridian_pass_count": 160,
+      "vantage_pass_count": 0
+    },
+    "vantage": {
+      "meridian_pass_rate": 0.0,
+      "vantage_pass_rate": 1.0,
+      "n": 160,
+      "errors": 0,
+      "meridian_pass_count": 0,
+      "vantage_pass_count": 160
+    }
+  },
+  "base": {
+    "meridian_pass_rate": 0.0,
+    "vantage_pass_rate": 0.0,
+    "n": 160,
+    "errors": 0,
+    "meridian_pass_count": 0,
+    "vantage_pass_count": 0
+  },
+  "meridian": {
+    "meridian_pass_rate": 1.0,
+    "vantage_pass_rate": 0.0,
+    "n": 160,
+    "errors": 0,
+    "meridian_pass_count": 160,
+    "vantage_pass_count": 0
+  },
+  "vantage": {
+    "meridian_pass_rate": 0.0,
+    "vantage_pass_rate": 1.0,
+    "n": 160,
+    "errors": 0,
+    "meridian_pass_count": 0,
+    "vantage_pass_count": 160
+  }
+}

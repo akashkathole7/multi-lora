@@ -1,0 +1,233 @@
+
+=== az account set ===
+Azure subscription 1	97540688-009b-4a05-bea2-5cdea4cfe222
+
+=== check the adapter model asset exists (free, read-only) ===
+2026-08-25T11:11:20Z model asset adapters-both:1 found; deployment will reference azureml:adapters-both@latest
+2026-08-25T11:11:20Z the adapters ship as a registered asset - no local staging, no blob upload, no SAS
+==========================================================================
+  COST ESTIMATE - READ BEFORE CONTINUING
+==========================================================================
+  SKU                     Standard_NC24ads_A100_v4 (1x A100 80GB, 24 vCPU)
+  region                  southcentralus
+  instances               1
+  rate                    $3.673 / hour   (ESTIMATE - VERIFY AT RUN TIME)
+                          ~Rs 320 / hour at Rs 87.0 per USD
+  planned session         3 hours
+  PROJECTED SESSION COST  $11.02   (~Rs 959)
+==========================================================================
+  The rate above is a hardcoded estimate taken from the Azure pricing
+  page and has NOT been checked against your actual bill, your region,
+  your currency, or any reservation or credit you may hold. Verify at:
+    https://azure.microsoft.com/en-us/pricing/details/virtual-machines/linux/
+
+  BILLING IS BY WALL-CLOCK TIME FROM DEPLOYMENT CREATION TO DELETION.
+  Not per request. An idle endpoint costs exactly the same as a busy
+  one. If you walk away without running:
+
+      ./serve/azure/deploy.sh teardown
+
+  you will be billed ~Rs 320 per hour, indefinitely.
+==========================================================================
+2026-08-25T11:11:20Z ASSUME_YES=yes-bill set in the environment; proceeding without a prompt
+
+=== resource group + workspace (idempotent - both already exist) ===
+2026-08-25T11:11:22Z resource group rg-multilora already exists
+2026-08-25T11:11:26Z workspace mlw-multilora already exists
+
+=== register environment (BYOC image build) ===
+2026-08-25T11:11:26Z rendered /home/aakash/Videos/multi-lora/serve/azure/environment.yaml -> /home/aakash/Videos/multi-lora/serve/azure/.rendered/environment.yaml
+2026-08-25T11:11:26Z build context /home/aakash/Videos/multi-lora/serve/azure/.rendered: Dockerfile + start_server.sh only
+2026-08-25T11:11:26Z Azure ML builds the Dockerfile in the workspace container registry.
+2026-08-25T11:11:26Z   First build pulls the vLLM base image and takes several minutes.
+2026-08-25T11:11:26Z   Why a build at all: the deployment schema has no command/entrypoint
+2026-08-25T11:11:26Z   override, and vllm serve takes its flags on ARGV - see the comment
+2026-08-25T11:11:26Z   block in serve/azure/environment.yaml.
+2026-08-25T11:11:57Z registered environment multilora-vllm:1
+
+=== create endpoint ===
+2026-08-25T11:11:57Z rendered /home/aakash/Videos/multi-lora/serve/azure/endpoint.yaml -> /home/aakash/Videos/multi-lora/serve/azure/.rendered/endpoint.yaml
+2026-08-25T11:13:44Z created endpoint multilora-ep
+2026-08-25T11:13:44Z an endpoint with no deployment does not bill. The next step does.
+
+=== create deployment  <-- THIS IS THE BILLABLE ONE ===
+2026-08-25T11:13:44Z rendered /home/aakash/Videos/multi-lora/serve/azure/deployment.yaml -> /home/aakash/Videos/multi-lora/serve/azure/.rendered/deployment.yaml
+2026-08-25T11:13:44Z creating blue on Standard_NC24ads_A100_v4, mounting azureml:adapters-both@latest.
+2026-08-25T11:13:44Z   Expect 20-40 minutes: image build, node allocation, then ~16 GB of
+2026-08-25T11:13:44Z   base weights downloaded inside the container. Billing starts now.
+All traffic will be set to deployment blue once it has been provisioned.
+If you interrupt this command or it times out while waiting for the provisioning, you can try to set all the traffic to this deployment later once its has been provisioned.
+Check: endpoint multilora-ep exists
+................................................................................................................................................................................................................................................................................................................................................................................................................................{
+  "app_insights_enabled": false,
+  "creation_context": {
+    "created_at": "2026-08-25T11:13:58.283086+00:00",
+    "created_by": "ccabf6bf-e3e4-41f4-93bb-addda92c395b",
+    "last_modified_at": "2026-08-25T11:13:58.283107+00:00"
+  },
+  "egress_public_network_access": "enabled",
+  "endpoint_name": "multilora-ep",
+  "environment": "azureml:/subscriptions/97540688-009b-4a05-bea2-5cdea4cfe222/resourceGroups/rg-multilora/providers/Microsoft.MachineLearningServices/workspaces/mlw-multilora/environments/multilora-vllm/versions/1",
+  "environment_variables": {
+    "ADAPTER_MOUNT_ROOT": "/mnt/adapters",
+    "ADAPTER_NAMES": "meridian,vantage",
+    "AZUREML_MODEL_DIR": "/mnt/adapters",
+    "BASE_MODEL": "nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+    "GPU_MEMORY_UTILIZATION": "0.90",
+    "HF_HOME": "/mnt/hfcache",
+    "HF_TOKEN": null,
+    "MAX_CPU_LORAS": "8",
+    "MAX_LORAS": "4",
+    "MAX_LORA_RANK": "16",
+    "MAX_MODEL_LEN": "4096",
+    "MEM_SAMPLE_SECONDS": "30",
+    "READY_TIMEOUT_SECONDS": "1800",
+    "SERVED_BASE_NAME": "base",
+    "VLLM_PORT": "8000",
+    "WARM_ADAPTERS": "1"
+  },
+  "id": "/subscriptions/97540688-009b-4a05-bea2-5cdea4cfe222/resourceGroups/rg-multilora/providers/Microsoft.MachineLearningServices/workspaces/mlw-multilora/onlineEndpoints/multilora-ep/deployments/blue",
+  "instance_count": 1,
+  "instance_type": "Standard_NC24ads_A100_v4",
+  "liveness_probe": {
+    "failure_threshold": 40,
+    "initial_delay": 900,
+    "period": 30,
+    "success_threshold": 1,
+    "timeout": 10
+  },
+  "model": "azureml:/subscriptions/97540688-009b-4a05-bea2-5cdea4cfe222/resourceGroups/rg-multilora/providers/Microsoft.MachineLearningServices/workspaces/mlw-multilora/models/adapters-both/versions/1",
+  "name": "blue",
+  "properties": {
+    "AzureAsyncOperationUri": "https://management.azure.com/subscriptions/97540688-009b-4a05-bea2-5cdea4cfe222/providers/Microsoft.MachineLearningServices/locations/southcentralus/mfeOperationsStatus/odidp:532ab8ff-cf9b-4a7b-a5fb-314a513c26a7:84ebfbba-afe4-4a3a-891b-5cbffa0d0bcc?api-version=2023-04-01-preview"
+  },
+  "provisioning_state": "Succeeded",
+  "readiness_probe": {
+    "failure_threshold": 40,
+    "initial_delay": 900,
+    "period": 30,
+    "success_threshold": 1,
+    "timeout": 10
+  },
+  "request_settings": {
+    "max_concurrent_requests_per_instance": 32,
+    "request_timeout_ms": 180000
+  },
+  "resourceGroup": "rg-multilora",
+  "scale_settings": {
+    "type": "default"
+  },
+  "tags": {
+    "project": "multi-lora",
+    "tenants": "meridian,vantage"
+  },
+  "type": "managed"
+}
+2026-08-25T11:56:36Z deployment blue created and taking 100% of traffic
+
+=== scoring URI + key ===
+2026-08-25T11:56:46Z scoring URI: https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions
+2026-08-25T11:56:46Z key: retrieved (84 chars, not printed)
+2026-08-25T11:56:46Z wrote /home/aakash/Videos/multi-lora/serve/azure/logs/endpoint.env (mode 600, gitignored - it holds the key)
+
+=== probe which URL actually serves chat completions ===
+2026-08-25T11:56:47Z probe https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions -> HTTP 200
+2026-08-25T11:56:48Z probe https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions/v1/chat/completions -> HTTP 424
+==========================================================================
+  CHAT COMPLETIONS URL: https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions
+
+  This was DISCOVERED, not assumed - see the CHECK note in
+  serve/azure/environment.yaml. Record the answer in change_log.md.
+
+  eval/ and bench/ normalise --endpoint by appending /v1/chat/completions
+  unless the URL already ends in /chat/completions. So:
+    the winning URL ends in /score, which those tools cannot build.
+    Pass the URL below and they will use it verbatim only if it ends
+    in /chat/completions - it does not, so use a local rewrite proxy
+    or set scoring_route.path and call the /v1 form instead.
+==========================================================================
+
+=== smoke test - one chat completion per served name ===
+Verdicts come from /home/aakash/Videos/multi-lora/.venv/bin/python data/verifier.py running LOCALLY on this
+machine, against the same deterministic contract that filtered the
+training data. Nothing on the Azure side decides whether this passed.
+
+  meridian  HTTP 200  PASS /home/aakash/Videos/multi-lora/serve/azure/logs/smoke_meridian.json
+  vantage   HTTP 200  PASS /home/aakash/Videos/multi-lora/serve/azure/logs/smoke_vantage.json
+  base      HTTP 200  PASS (returns text, 2280 chars)
+    context, NOT the smoke verdict - base is the control arm, and
+    the correct result below is FAIL under both tenant contracts:
+      as meridian  FAIL /home/aakash/Videos/multi-lora/serve/azure/logs/smoke_base.json
+      as vantage   FAIL /home/aakash/Videos/multi-lora/serve/azure/logs/smoke_base.json
+
+2026-08-25T11:57:18Z smoke test: every served name answered
+Raw responses: /home/aakash/Videos/multi-lora/serve/azure/logs/smoke_*.raw.json
+A one-request-per-arm smoke test is NOT the separation measurement.
+For that, run eval/separation.py against the sealed goal set.
+
+=== GPU memory log lines from the container ===
+Source: start_server.sh writes every nvidia-smi sample to stdout with a
+GPUMEM prefix; Azure ML captures container stdout; get-logs replays it.
+
+2026-08-25T11:57:21Z wrote /home/aakash/Videos/multi-lora/serve/azure/logs/deployment_logs.txt (264 lines)
+
+--- where the adapters were found inside the container ---
+2026-08-25T11:39:50Z start_server: adapter root    /mnt/adapters/adapters
+2026-08-25T11:39:50Z start_server: matched pattern <root>/*/meridian/adapter_config.json
+
+--- GPUMEM phase markers ---
+2026-08-25T11:39:50Z GPUMEM phase=startup memory.used [MiB]
+2026-08-25T11:39:50Z GPUMEM phase=startup 0 MiB
+2026-08-25T11:40:20Z GPUMEM phase=after_base_download memory.used [MiB]
+2026-08-25T11:40:20Z GPUMEM phase=after_base_download 0 MiB
+2026-08-25T11:42:16Z GPUMEM phase=server_ready_base_resident memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=server_ready_base_resident 74002 MiB
+2026-08-25T11:42:16Z GPUMEM phase=before_first_request_meridian memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=before_first_request_meridian 74002 MiB
+2026-08-25T11:42:16Z GPUMEM phase=after_first_request_meridian memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=after_first_request_meridian 74002 MiB
+2026-08-25T11:42:16Z GPUMEM phase=before_first_request_vantage memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=before_first_request_vantage 74002 MiB
+2026-08-25T11:42:16Z GPUMEM phase=after_first_request_vantage memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=after_first_request_vantage 74002 MiB
+2026-08-25T11:42:16Z GPUMEM phase=steady_state memory.used [MiB]
+2026-08-25T11:42:16Z GPUMEM phase=steady_state 74002 MiB
+
+--- adapter sizes on disk, as seen inside the container ---
+2026-08-25T11:39:50Z start_server: adapter root    /mnt/adapters/adapters
+2026-08-25T11:39:50Z start_server: adapter meridian at /mnt/adapters/adapters/meridian (1748220372 bytes on disk)
+2026-08-25T11:39:50Z start_server: adapter vantage at /mnt/adapters/adapters/vantage (1748221939 bytes on disk)
+2026-08-25T11:42:16Z start_server: adapter warm-up done. The GPUMEM deltas around
+
+--- periodic samples (last 10) ---
+2026-08-25T11:54:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:54:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:55:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:55:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:55:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:55:51Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:56:21Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:56:21Z GPUMEM phase=periodic 74002 MiB
+2026-08-25T11:56:51Z GPUMEM phase=periodic memory.used [MiB]
+2026-08-25T11:56:51Z GPUMEM phase=periodic 74002 MiB
+
+The delta between before_first_request_<name> and
+after_first_request_<name> is that adapter's GPU footprint. It is
+the number that replaces the 0.08 GB ESTIMATE in bench/economics.py.
+==========================================================================
+  DEPLOYED - AND NOW BILLING
+==========================================================================
+  scoring URI   https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions
+  chat URL      https://multilora-ep.southcentralus.inference.ml.azure.com/v1/chat/completions
+  adapters      azureml:adapters-both@latest
+  credentials   /home/aakash/Videos/multi-lora/serve/azure/logs/endpoint.env
+
+  Next:
+    source /home/aakash/Videos/multi-lora/serve/azure/logs/endpoint.env
+    /home/aakash/Videos/multi-lora/.venv/bin/python eval/separation.py --endpoint "$MULTILORA_CHAT_URL" \
+        --api-key-env MULTILORA_API_KEY --goals eval/goals_sealed.jsonl --sealed
+    /home/aakash/Videos/multi-lora/.venv/bin/python bench/swap_time.py --endpoint "$MULTILORA_CHAT_URL" --adapter meridian
+
+  WHEN YOU ARE DONE - every hour from now costs ~Rs 320:
+      ./serve/azure/deploy.sh teardown
+==========================================================================
