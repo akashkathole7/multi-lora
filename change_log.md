@@ -411,3 +411,36 @@ Existing provider self-tests: 5/5 green after the patch.
 **Evidence.** `data/logs/pilot_outputs.log` (smoke lines at top),
 `tests/test_generate_openai_provider.py`, README Unverified-items row marked
 RESOLVED.
+
+## Entry 7 — Stage 1 pilot accepted; --concurrency for the scale run
+
+**Date:** 2026-08-25
+
+**What.** Ran the 80-goal pilot (160 calls, gpt-5-mini, reasoning_effort minimal).
+Accepted the generator prompts unchanged. Added `--concurrency` to the `outputs`
+stage (thread pool, order-preserving, default 1 = old behavior) and switched
+progress prints to flush.
+
+**Why.** Pilot gate is rejection <15%; measured 7.50% (160 in, 148 kept: meridian
+71/80, vantage 77/80; 3 parse — includes 2 API errors — 1 schema, 8 vocab). The
+dominant reject is instructive: Meridian outputs writing the standalone word
+"owner"/"owners" in prose (rival term) while the schema's own `owner_role` key is
+legal — the exact schema-vs-voice leakage the vocabulary check exists to catch.
+A prompt change would need a fresh pilot per the one-change-per-iteration rule;
+projected clean yield without it (800 x 0.89 = 712 per tenant, need 600) makes
+that spend unnecessary. Sequential generation at ~6.5 s/call would put the
+1,440-call scale run at ~2.6 h; concurrency 8 brings it to ~20 min inside a
+100K-TPM deployment limit.
+
+**Problem it solves.** Scale-run wall time; otherwise none — the pilot passed.
+
+**Expected impact.** Full train/dev outputs (goals 81–800) in ~20 min for ~$1.10;
+goals 1–80 reuse the pilot outputs byte-for-byte (goals stage is prefix-stable
+for a fixed seed, verified). Goals 801–960 are reserved as the sealed set and
+never receive generated outputs.
+
+**Measured impact.** Pilot numbers above, parsed into `reports/iter_01.md`.
+Provider self-tests 5/5 after the concurrency patch.
+
+**Evidence.** `data/logs/pilot_outputs.log`, `data/logs/pilot_filter.log`,
+`data/generated/pilot/filter_summary.json`, `reports/iter_01.md`.

@@ -1,0 +1,35 @@
+filter: input data/generated/pilot/outputs.jsonl
+filter: total 160  kept 148  rejected 12  rejection rate 7.50%
+filter:   meridian: total 80 kept 71 rejected 9
+filter:   vantage: total 80 kept 77 rejected 3
+filter:   reason parse: 3
+filter:   reason schema: 1
+filter:   reason vocab: 8
+filter:   REJECT goal_id=1 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=12 tenant=meridian reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=12 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bgates?\b
+filter:   REJECT goal_id=17 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=21 tenant=vantage reason=parse
+filter:     json parse error: Invalid control character at: line 7 column 80 (char 292)
+filter:   REJECT goal_id=34 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=35 tenant=meridian reason=parse
+filter:     json parse error: Expecting value: line 1 column 1 (char 0)
+filter:   REJECT goal_id=39 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=44 tenant=vantage reason=vocab
+filter:     vocab: rival terms present for vantage: \bsign[- ]?offs?\b
+filter:   REJECT goal_id=56 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bsprints?\b, \bowners?\b
+filter:   REJECT goal_id=57 tenant=meridian reason=vocab
+filter:     vocab: rival terms present for meridian: \bowners?\b
+filter:   REJECT goal_id=58 tenant=meridian reason=schema
+filter:     risks[0]: missing key severity
+filter:     risks[1]: missing key severity
+filter:     risks[2]: missing key severity
+filter:     risks[3]: missing key severity
+filter: wrote data/generated/pilot/kept.jsonl, data/generated/pilot/rejected.jsonl, data/generated/pilot/filter_summary.json

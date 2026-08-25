@@ -554,26 +554,37 @@ def stage_outputs(args) -> int:
         return code
 
     goals = read_jsonl(goals_path)
-    rows = []
-    errors = 0
-    for goal_row in goals:
-        for tenant in TENANTS:
-            text, error = call(tenant, goal_row["goal"])
-            row = {
-                "goal_id": goal_row["goal_id"],
-                "goal": goal_row["goal"],
-                "tenant": tenant,
-                "text": text,
-                "model": args.model,
-                "provider": args.provider,
-            }
-            if error:
-                errors += 1
-                row["error"] = error
-                print(f"outputs: goal {goal_row['goal_id']} {tenant} ERROR {error[:200]}")
-            else:
-                print(f"outputs: goal {goal_row['goal_id']} {tenant} ({len(text)} chars)")
-            rows.append(row)
+    tasks = [(goal_row, tenant) for goal_row in goals for tenant in TENANTS]
+
+    def run_one(task):
+        goal_row, tenant = task
+        text, error = call(tenant, goal_row["goal"])
+        row = {
+            "goal_id": goal_row["goal_id"],
+            "goal": goal_row["goal"],
+            "tenant": tenant,
+            "text": text,
+            "model": args.model,
+            "provider": args.provider,
+        }
+        if error:
+            row["error"] = error
+            print(f"outputs: goal {goal_row['goal_id']} {tenant} ERROR {error[:200]}", flush=True)
+        else:
+            print(f"outputs: goal {goal_row['goal_id']} {tenant} ({len(text)} chars)", flush=True)
+        return row
+
+    # Concurrency preserves row order: executor.map returns results in task
+    # order regardless of completion order, so outputs.jsonl is deterministic
+    # in layout for a given goals file.
+    if args.concurrency > 1:
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as pool:
+            rows = list(pool.map(run_one, tasks))
+    else:
+        rows = [run_one(t) for t in tasks]
+    errors = sum(1 for r in rows if "error" in r)
 
     path = out_dir / "outputs.jsonl"
     write_jsonl(path, rows)
@@ -785,6 +796,10 @@ def main(argv=None) -> int:
         "--reasoning-effort",
         help="outputs stage, --provider openai: reasoning_effort value for "
              "reasoning models (e.g. minimal); omitted from the request when unset",
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=1,
+        help="outputs stage: parallel API calls (thread pool); 1 = sequential",
     )
     parser.add_argument(
         "--out-dir", default=str(DEFAULT_OUT_DIR), help="directory for stage outputs"

@@ -1,0 +1,24 @@
+{
+  "input": "data/generated/pilot/outputs.jsonl",
+  "total": 160,
+  "kept": 148,
+  "rejected": 12,
+  "rejection_rate_pct": 7.5,
+  "per_tenant": {
+    "meridian": {
+      "total": 80,
+      "kept": 71,
+      "rejected": 9
+    },
+    "vantage": {
+      "total": 80,
+      "kept": 77,
+      "rejected": 3
+    }
+  },
+  "reasons": {
+    "vocab": 8,
+    "parse": 3,
+    "schema": 1
+  }
+}
