@@ -513,3 +513,41 @@ in the next entry.
 resolved config then the import failure), `funny_ball_xpnt0wxsxt` (the
 importable-modules table), scratchpad log copy committed at
 `train/logs/container_diagnostic_20260825.txt`.
+
+## Entry 10 — devmatrix job served nothing for 2h: YAML folding bug, fixed
+
+**Date:** 2026-08-25
+
+**What.** Cancelled eval job `yellow_dinner_p5pg2mhblp` (devmatrix-A) after ~2h
+of nothing, replaced `job_devmatrix_a.yaml` with a fixed combined
+`job_devmatrix.yaml` (base + both adapters, one eval job), and resequenced:
+adapter B trains first (it was already queued), then one combined dev matrix.
+
+**Why.** The job's vLLM line was spread over several deeper-indented lines
+inside a YAML folded scalar. Folded scalars keep the newlines of more-indented
+lines, and a newline splits a shell command: the container ran bare
+`vllm serve <model>` in the foreground — no `--enable-lora`, no adapter, no
+`--served-model-name base` — and the script never reached the health check or
+the eval. vLLM's own startup log is the proof: `non-default args: {'model': …}`
+and `served_model_name=nvidia/Llama-3.1-Nemotron-Nano-8B-v1`. The training jobs
+survived the same layout only because each of their physical lines was a
+complete `;`-terminated command.
+
+**Problem it solves.** Every logical shell command in job YAML now sits on one
+physical line, asserted by a parse check before submission; the fixed file
+carries the lesson in a header comment.
+
+**Expected impact.** The rerun performs the actual eval. Combining both
+adapters into one eval job saves one full server-startup cycle (~15 min GPU).
+Resequencing rationale: adapter A's training metrics were healthy (loss
+1.94 -> 0.54, clean artifact), so the train-B-before-A-check risk is small,
+and B was already queued on the warm node.
+
+**Measured impact.** Cost of the bug: ~2h A100 ≈ $7.3 serving zero requests.
+Detection was delayed ~1h by the Entra security-defaults auth outage (CLI
+locked out; resolved by switching to a service-principal login, which the
+policy does not block; SP is deleted at project teardown).
+
+**Evidence.** `scratchpad devmatrix_stream.log` (vLLM `non-default args` line),
+cancelled job `yellow_dinner_p5pg2mhblp` in the workspace, fixed
+`train/azureml/job_devmatrix.yaml`.

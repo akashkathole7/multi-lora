@@ -1,42 +1,32 @@
-# Azure ML command job — dev-set confusion matrix via a local vLLM server.
-# Serves the base model plus whichever adapters exist under train/out/ in the
-# code snapshot, then runs eval/separation.py against localhost and stores the
-# matrix + raw JSONL in the job's ./outputs. No endpoint, no public surface.
-#   az ml job create -f train/azureml/job_devmatrix.yaml -g rg-multilora -w mlw-multilora \
-#     --set inputs.arms=base,meridian --set display_name=devmatrix-A
-# Cost: a100-cluster ~$3.67/hr; model download + serve + 100-300 requests ~= 25-40 min.
+# Dev-set confusion matrix: base + both adapters served by one vLLM process.
+#   az ml job create -f train/azureml/job_devmatrix.yaml -g rg-multilora -w mlw-multilora
+# LESSON (job yellow_dinner_p5pg2mhblp, cancelled after 2h serving nothing):
+# YAML folded scalars KEEP newlines for deeper-indented lines, and a newline
+# inside a shell command splits it. Every logical shell command below therefore
+# sits on exactly one physical line, however long.
+# Cost: a100-cluster ~$3.67/hr; expect ~30-45 min.
 $schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
 experiment_name: multilora-eval
-display_name: devmatrix
+display_name: devmatrix-AB
 code: ../..
 command: >-
   set -e;
   nvidia-smi --query-gpu=memory.used,memory.total --format=csv;
-  LORA_ARGS="";
-  for t in meridian vantage; do
-    if [ -d "train/out/adapter_$t" ]; then LORA_ARGS="$LORA_ARGS $t=train/out/adapter_$t"; fi;
-  done;
-  echo "lora modules:$LORA_ARGS";
-  (vllm serve nvidia/Llama-3.1-Nemotron-Nano-8B-v1
-    --served-model-name base
-    --enable-lora --max-lora-rank 16 --max-loras 4
-    --lora-modules $LORA_ARGS
-    --max-model-len 4096 --port 8000 > outputs/vllm_server.log 2>&1 &);
-  for i in $(seq 1 120); do
-    python3 -c "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=5)" 2>/dev/null && break; sleep 10;
-  done;
+  (vllm serve nvidia/Llama-3.1-Nemotron-Nano-8B-v1 --served-model-name base --enable-lora --max-lora-rank 16 --max-loras 4 --lora-modules meridian=${{inputs.adapter_meridian}} vantage=${{inputs.adapter_vantage}} --max-model-len 4096 --port 8000 > outputs/vllm_server.log 2>&1 &);
+  for i in $(seq 1 120); do python3 -c "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=5)" 2>/dev/null && break; sleep 10; done;
   python3 -c "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=5)";
-  echo "server healthy after ~$((i*10))s";
+  echo "server healthy";
   nvidia-smi --query-gpu=memory.used,memory.total --format=csv;
-  python eval/separation.py --endpoint http://127.0.0.1:8000
-    --goals eval/dev_goals.jsonl --arms ${{inputs.arms}}
-    --out-dir outputs/eval_logs --max-concurrency 4;
+  python3 eval/separation.py --endpoint http://127.0.0.1:8000 --goals eval/dev_goals.jsonl --arms base,meridian,vantage --out-dir outputs/eval_logs --max-concurrency 4;
   nvidia-smi --query-gpu=memory.used,memory.total --format=csv;
-  tail -5 outputs/vllm_server.log
+  tail -20 outputs/vllm_server.log
 inputs:
-  arms: base,meridian
+  adapter_meridian:
+    type: custom_model
+    path: azureml:adapter-meridian@latest
+  adapter_vantage:
+    type: custom_model
+    path: azureml:adapter-vantage@latest
 environment:
-  # Tag verified on Docker Hub 2026-08-25 (serving draft); entrypoint is
-  # overridden by `command`, python inside has vllm preinstalled.
   image: vllm/vllm-openai:v0.27.1
 compute: azureml:a100-cluster
