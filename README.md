@@ -64,7 +64,6 @@ live endpoint, and the sealed matrix.
 RESULTS.md             every measured number, with the log file behind each one
 ARCHITECTURE.md        how the whole thing works, for a non-specialist reader
 change_log.md          the project's memory: 17 entries, mistakes included
-email_draft.md         DRAFT summary mail, unsent
 data/verifier.py       deterministic schema + vocabulary checker (stdlib only)
 data/test_outputs.py   the fixture verdict table, pytest or plain python
 data/generate.py       goals -> outputs -> filter -> package
