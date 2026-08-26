@@ -25,12 +25,12 @@ Two headline numbers:
   160/160 and its rival's 0/160; the Vantage adapter the exact reverse; the base
   model, with the identical system message, satisfied neither on any goal. 480
   requests, 0 errors. Source: `eval/logs/separation_matrix_sealed.json`.
-- **Warm tenant switch ~ 0 ms.** Adapter TTFT p50 minus base TTFT p50 was
-  **-48 ms** (meridian) and **+4 ms** (vantage), against a 292 ms p95-p50 spread
-  on the same run. Tenants are warm from server start; there is no runtime cold
-  path in this serving design. Sources:
-  `bench/logs/swap_time_summary_20260825T122412363Z.json`,
-  `bench/logs/swap_time_summary_20260825T122801312Z.json`.
+- **Tenant switch +53 ms p50, below jitter.** Alternating adapters every request
+  versus repeating one adapter cost +52.9 ms at p50, against p95-p50 spreads of
+  198-562 ms on those same arms (`bench/logs/matrix_summary_endpoint_session1.json`).
+  Corroborated by fresh-server first-request probes: adapter-vs-base -48 ms and
+  +4 ms (`bench/logs/swap_time_summary_20260825T12*.json`). Tenants are warm from
+  server start; there is no runtime cold path in this serving design.
 
 The cost side of the ledger is in RESULTS too: multi-LoRA serving measured
 **+9.3% TTFT and -10.0% tokens/sec** against a base-only arm, roughly double the
