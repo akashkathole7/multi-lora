@@ -9,14 +9,14 @@
 
 | file | kind | lines |
 | --- | --- | ---: |
-| `eval/logs/separation_matrix_sealed_sealed_final.json` | separation_matrix | 73 |
-| `eval/logs/separation_raw_sealed_sealed_final.jsonl` | separation_raw | 480 |
+| `eval/logs/separation_matrix_sealed.json` | separation_matrix | 73 |
+| `eval/logs/separation_raw_sealed.jsonl` | separation_raw | 480 |
 
 ## Key numbers
 
 ### Adapter separation
 
-Source: `eval/logs/separation_matrix_sealed_sealed_final.json` (raw: `eval/logs/separation_raw_sealed_sealed_final.jsonl`)
+Source: `eval/logs/separation_matrix_sealed.json` (raw: `eval/logs/separation_raw_sealed.jsonl`)
 
 | arm | passes Meridian rules | passes Vantage rules | n | errors |
 | --- | ---: | ---: | ---: | ---: |

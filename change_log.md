@@ -870,8 +870,8 @@ Thresholds were >=90 / <=10 / <=10; every cell clears with maximum margin, and
 the dev-set's two vantage misses did not recur on sealed data. The base row
 proves the prompt alone does nothing: identical system message, zero passes.
 
-**Evidence.** `eval/logs/separation_matrix_sealed_sealed_final.json`,
-`eval/logs/separation_raw_sealed_sealed_final.jsonl`, `data/logs/sealed_run.log`,
+**Evidence.** `eval/logs/separation_matrix_sealed.json`,
+`eval/logs/separation_raw_sealed.jsonl`, `data/logs/sealed_run.log`,
 `serve/azure/logs/teardown_session1.log`, `reports/iter_04.md`.
 
 *(Correction to entry 14: the serve/azure/logs evidence files named there were

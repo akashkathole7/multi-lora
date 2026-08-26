@@ -5,9 +5,10 @@ Subject: Multi-LoRA on one A100 — measured results
 Monish,
 
 I trained two tenant-specific LoRA adapters on Llama-3.1-Nemotron-Nano-8B —
-HF PEFT route inside NVIDIA's NeMo-FW container, because the 26.08 image no
-longer ships the NeMo training API — and served both from one A100 behind an
-Azure ML (Foundry) managed online endpoint.
+the 26.08 NeMo-FW image ships Megatron-Bridge rather than the legacy NeMo API
+my recipe targeted, so given the week I used HF PEFT inside the same container —
+and served both from one A100 behind an Azure AI Foundry managed online
+endpoint.
 
 Two numbers.
 
@@ -26,8 +27,10 @@ project cost about $35 of a $200 Azure credit; the endpoint is torn down.
 One limit, measured not assumed: multi-LoRA costs +9.3% time-to-first-token and
 −10.0% tokens/sec versus base-only. RESULTS.md explains it.
 
-One-page summary with the tables and the architecture diagram: <PRESENTATION_URL>
-Repo: <REPO_URL>. Every number traces to a log file in the repo; the change log
-includes the mistakes.
+One-page summary with the tables and the architecture diagram:
+<PRESENTATION_SHARE_LINK — from the artifact's share menu>
+Repo: https://github.com/akashkathole7/multi-lora — start with RESULTS.md.
+Every number traces to a log file in the repo; the change log includes the
+mistakes.
 
 Aakash

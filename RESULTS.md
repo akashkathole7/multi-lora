@@ -19,8 +19,8 @@ The endpoint has been torn down and the deletion read back
 160 goals held out of training, hash-locked before the run, three arms, 480
 requests, concurrency 4, 0 HTTP errors, wall time 1151.65s.
 
-Source: `eval/logs/separation_matrix_sealed_sealed_final.json`
-(raw: `eval/logs/separation_raw_sealed_sealed_final.jsonl`, console:
+Source: `eval/logs/separation_matrix_sealed.json`
+(raw: `eval/logs/separation_raw_sealed.jsonl`, console:
 `data/logs/sealed_run.log`).
 
 | arm | passes Meridian rules | passes Vantage rules | n | errors |
@@ -36,7 +36,10 @@ against `eval/SEALED.sha256` before the first request was sent.
 **Reading it.** The base row is the control and it is the important row. The base
 model received the identical system message and the identical goal text, and it
 satisfied neither tenant contract on any of 160 goals. So the behaviour is not
-coming from the prompt. The two adapter rows are the diagonal: each adapter
+coming from *this* prompt. One control was not run and is listed in section (f):
+a base arm carrying each tenant's house-style rules as a long system prompt. The
+harness supports it unchanged; without it, this matrix proves the adapters beat
+the deployed prompt, not that no prompt could close part of the gap. The two adapter rows are the diagonal: each adapter
 satisfies its own tenant's contract on every goal and its rival's on none. The
 off-diagonal zeros matter as much as the diagonal 160s — an adapter that had
 merely learned "emit JSON" would score on both columns. Verification is
@@ -76,6 +79,16 @@ Definitions, from the same summary file: `itl` is the per-request mean
 `tokens_per_sec` per request is `output_tokens / e2e_s`;
 `tokens_per_sec_aggregate` is `sum(output_tokens) / wall_time_s`;
 `overhead_vs_base_pct` is `(arm e2e_p50 / base-only e2e_p50 - 1) * 100`.
+
+All timings are **client-observed through the public Azure scoring URI**, so
+TTFT includes network round-trip and endpoint-side queueing on top of prefill —
+which is why an 8B model on an A100 shows ~1.1s TTFT here. Arms are compared
+against each other over the same path, so the network component cancels in the
+deltas. Mean output tokens per arm, from the raw log: base-only 378.3,
+base-plus-one-lora 415.4, both two-lora arms 512.0 (the cap). The -32% req/s
+against base is therefore a task-length effect — the adapters emit ~34% more
+tokens per response — not a tenancy cost; normalized per token, the multi-LoRA
+cost is the -10.0% above.
 
 **The honest reading.** The project's stated aspiration for objective #2 was that
 multi-LoRA serving cost under 5% overhead versus base
@@ -155,6 +168,17 @@ request and a Vantage request back to back costs nothing measurable. That is the
 expected result: the adapter is selected per row of the batch inside the kernel,
 so switching tenants moves a pointer, not weights.
 
+**Two definitions, reconciled.** `adapter p50 - base p50` compares a LoRA
+request against a no-LoRA request, so it convolves the switch with the LoRA
+compute tax of section (b) — that is why its sign flips run to run. The cleaner
+isolation uses section (b)'s own arms, both LoRA-on: `two-lora-interleaved`
+TTFT p50 (1.228817s, A/B alternating every request) minus `base-plus-one-lora`
+TTFT p50 (1.175948s, the same adapter repeatedly) = **+52.9 ms**, against
+p95-p50 spreads of 198-562 ms on those arms. Same verdict by either definition:
+switching tenants costs nothing distinguishable from jitter, and the round-robin
+arm ordering (`two-lora-round-robin`, a switch on every consecutive request)
+lands within 0.1s of interleaved on e2e p50.
+
 **There is no runtime cold path on this serving design.** Meridian's first-ever
 request was *faster* than its own warm p50 (0.976s vs 1.232s). Vantage's was
 100 ms slower than its warm p50, which is inside that run's warm p95-p50 spread
@@ -212,7 +236,8 @@ back it out.
 **167,832,240 bytes** (~160 MiB, ~0.168 GB), identical for both tenants by
 construction, recorded in `change_log.md` entry 11 from the training job output.
 That is fp32 storage of ~42M adapter parameters; stored bf16 it would be about
-half.
+half (~0.084 GB), and the GPU-resident copy vLLM keeps is in the model's compute
+dtype, so per-tenant GPU cost tracks the bf16 figure, not the fp32 file.
 
 Against the counterfactual: a second full fine-tune of this base model is roughly
 16 GB of weights (8B parameters at bf16). Per tenant, 0.168 GB against ~16 GB —
@@ -329,6 +354,14 @@ against the invoice.** Reserved instances, spot, enterprise agreements and
 regional variation all move it, and every cost row moves proportionally with it.
 
 **What this project actually spent.** Budget was a $200 Azure free-trial credit.
+A fair objection the table should anticipate: N full fine-tunes could also
+time-share one GPU, so the dedicated-GPU column is not the only alternative. But
+time-sharing full models means a ~16 GB weight reload on every tenant switch and
+no cross-tenant batching — requests for different tenants cannot share a forward
+pass. The adapter design removes both costs: switching is the ~0 ms of section
+(c), and heterogeneous tenants ride the same batch. That, not the storage line
+alone, is the economic argument.
+
 The one endpoint session is directly traceable: deployment `blue` created
 2026-08-25 11:13:44Z (`serve/azure/logs/deploy_session1.log`), deleted 12:50:49Z
 (`serve/azure/logs/teardown_session1.log`) — 1.618 hours, $5.94 at list price.
@@ -345,7 +378,20 @@ repository.
 
 ## (f) What breaks
 
-Nine limits. None are hypothetical.
+Eleven limits. None are hypothetical.
+
+**0a. The prompted-base control is missing.** The matrix's base arm ran with the
+training-time system message, not with each tenant's house rules pasted in as a
+long prompt. If a prompted base scored, say, 70%, the honest claim would become
+"the adapter closes the last 30% and removes a ~2 KB per-request prompt" — still
+a good story, but a different one. The harness runs this arm unchanged
+(`eval/separation.py --served-names` plus a prompt variant); it was not run.
+
+**0b. Runtime hot-add is supported, not demonstrated.** vLLM can load and unload
+adapters on a live server (`VLLM_ALLOW_RUNTIME_LORA_UPDATING` + the
+load/unload API); NIM exposes the same via its adapter store. This project served
+statically registered adapters only, so "add a tenant without restarting" is a
+documented capability here, not a measured one.
 
 **1. The verifier checks vocabulary and schema, not semantics.** A pass means the
 output has the right shape, uses the tenant's own terms and uses none of the
@@ -422,7 +468,7 @@ the numbers as one well-documented observation, not a distribution.
 Nothing in this file was typed from memory.
 
 Each number above names the file it came from: the sealed matrix from
-`eval/logs/separation_matrix_sealed_sealed_final.json`; the benchmark rows from
+`eval/logs/separation_matrix_sealed.json`; the benchmark rows from
 `bench/logs/matrix_summary_endpoint_session1.json`; output-token medians
 recomputed from `bench/logs/matrix_raw_endpoint_session1.jsonl`; swap numbers
 from the two `bench/logs/swap_time_summary_20260825T12*.json` files; GPU memory

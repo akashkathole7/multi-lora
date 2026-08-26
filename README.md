@@ -24,7 +24,7 @@ Two headline numbers:
   hash-locked before the run, the Meridian adapter satisfied its own contract
   160/160 and its rival's 0/160; the Vantage adapter the exact reverse; the base
   model, with the identical system message, satisfied neither on any goal. 480
-  requests, 0 errors. Source: `eval/logs/separation_matrix_sealed_sealed_final.json`.
+  requests, 0 errors. Source: `eval/logs/separation_matrix_sealed.json`.
 - **Warm tenant switch ~ 0 ms.** Adapter TTFT p50 minus base TTFT p50 was
   **-48 ms** (meridian) and **+4 ms** (vantage), against a 292 ms p95-p50 spread
   on the same run. Tenants are warm from server start; there is no runtime cold
@@ -132,7 +132,11 @@ talk to two:
 The second provider exists for a budget reason, not a technical one. This
 project's budget is an Azure free-trial credit and there is no Anthropic key in
 the build environment, so generation is paid for with Azure credit against a
-cheap Azure-hosted deployment (`gpt-4o-mini`) rather than blocked indefinitely.
+cheap Azure-hosted deployment rather than blocked indefinitely. The deployment
+actually used for all 1,600 rows was `gpt-5-mini` (Azure OpenAI, in this same
+subscription, `reasoning_effort: minimal`) — the only current small model this
+subscription had deployment quota for; see change_log entry 6. The `gpt-4o-mini`
+in the examples below is a placeholder model name.
 
 ```bash
 # Azure OpenAI, deployment route: POST {base}/openai/deployments/{model}
@@ -343,7 +347,10 @@ endpoints to confirm the name is gone** — a delete that returned zero is not
 evidence. An idle A100 endpoint bills about ₹320/hour whether or not a request
 ever arrives.
 
-**Secondary — DGX Spark**, on-prem, same image and same flags:
+**Secondary — DGX Spark**, on-prem: the same `vllm serve` configuration, but NOT
+the same image — Spark is arm64 + GB10 Blackwell, so the launch script targets
+NVIDIA's dedicated Spark container path (see the GB10 rows in "Unverified
+items"); untested on GB10 hardware:
 
 ```bash
 ./serve/spark/launch.sh --check-image   # resolve the GB10/sm_121 question on the box
