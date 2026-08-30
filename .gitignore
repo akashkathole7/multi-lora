@@ -14,3 +14,4 @@ serve/spark/logs/*
 !serve/spark/logs/.gitkeep
 serve/azure/logs/endpoint.env
 email_draft.md
+meeting_notes.md
