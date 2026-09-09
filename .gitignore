@@ -15,3 +15,4 @@ serve/spark/logs/*
 serve/azure/logs/endpoint.env
 email_draft.md
 meeting_notes.md
+email_followup.md
