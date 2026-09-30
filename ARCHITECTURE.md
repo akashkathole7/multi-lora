@@ -133,8 +133,12 @@ The honest caveat: memory is not the only constraint. One GPU has a fixed
 throughput, so twenty tenants share one queue. Whether that is acceptable is a
 throughput question, not a memory question, and it is what `bench/run_matrix.py`
 is for. It was run, at concurrency 4 with two tenants, and the answer was that
-multi-LoRA costs +9.3% on time-to-first-token and −10.0% on per-request token
-rate against a base-only arm. `RESULTS.md` section (b).
+multi-LoRA costs +9.3% on time-to-first-token and +20.4% on inter-token
+latency (ITL p50) against a base-only arm. This previously read ~~−10.0% on
+per-request token rate~~; that metric puts TTFT in its denominator and
+understates decode cost, and unequal output lengths (378 vs 512 mean tokens)
+mean even +20.4% is not fully attributable to LoRA (`verify/evidence/b7_itl.txt`).
+`RESULTS.md` section (b).
 
 ## 5. Data privacy
 
@@ -270,8 +274,8 @@ vLLM directly because the flags are the thing being measured.
 | --- | --- | --- |
 | warm swap is effectively free | `bench/swap_time.py` (`warm_swap_estimate_s`) | confirmed: −48 ms / +4 ms |
 | cold swap is a one-time per-adapter cost | `bench/swap_time.py` (`cold_swap_estimate_s`) | superseded: no runtime cold path, adapters preload at server start |
-| adapters produce tenant-correct output | `eval/separation.py` (confusion matrix) | confirmed on 160 sealed goals: 100% own, 0% rival, base 0% both |
-| one GPU carries both tenants at usable throughput | `bench/run_matrix.py` | yes, at a cost: +9.3% TTFT, −10.0% tokens/sec, 0 errors on 160 requests |
+| adapters produce tenant-correct output | `eval/separation.py` (confusion matrix) | 160 sealed goals: 100% own, 0% rival, base 0% both — ~~confirmed~~ shows own-schema emission only: 91.9% of sealed inputs are verbatim training text, the 0% rival is structural, and the verifier never sees the goal (`RESULTS.md`, "What this experiment does and does not show") |
+| one GPU carries both tenants at usable throughput | `bench/run_matrix.py` | yes, at a cost: +9.3% TTFT, +20.4% ITL p50 (~~−10.0% tokens/sec~~ understates it), 0 errors on 160 requests |
 | the memory and cost arithmetic | `bench/economics.py` | re-run with the measured adapter size |
 | adapter size on disk | training job artifact | measured: 167,832,240 bytes per tenant |
 | per-adapter GPU footprint | `nvidia-smi` phase markers | **not measured** — invisible inside vLLM's pre-allocated pool |

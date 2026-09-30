@@ -1,0 +1,11 @@
+(a) verify signature: verify(text: 'str', tenant: 'str') -> 'dict'
+    The input goal is not a parameter; no comparison to the goal is possible.
+
+(b) Cake plan vs MERIDIAN contract -> ok=True  schema_ok=True  vocab_ok=True  errors=[]
+    The plan is about baking a cake; no goal is consulted.
+
+(c) MIN_OWN_TERMS = 2. Own-term hits from an empty-prose skeleton
+    (all string values single dots, keys only):
+    meridian: 1 own-term pattern(s) from keys alone: ['\\bdeliverables?\\b']
+    vantage:  5 own-term pattern(s) from keys alone: ['\\bblockers?\\b', '\\bokrs?\\b', '\\bowners?\\b', '\\bship(s|ped|ping)?\\b', '\\bsprints?\\b']
+    -> meridian needs >= 1 more from prose; vantage needs >= 0 more from prose.

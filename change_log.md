@@ -966,3 +966,144 @@ guardrail grep PASS, dry-run filter 20 in / 17 kept / 3 rejected — identical t
 the committed logs. GPU-dependent steps are not re-run — they are the
 documented, parameterized scripts plus the committed logs of their one real
 execution.)*
+
+## Entry 18 — Sealed set sealed outputs, not inputs: 91.9% of sealed goals are verbatim training text
+
+**Date:** 2026-09-30
+
+**What.** Corrected every "held out of training" claim in `README.md` and
+`RESULTS.md`, and disclosed the contamination directly at the 100/0/0 result:
+README's Results headline bullet and RESULTS section (a), directly under the
+matrix table. Added RESULTS section "What this experiment does and does not
+show". The old wording stays visible, struck through.
+
+**Why.** An external review reported that sealed goal texts appear in the
+training split. `verify/check_b1_contamination.py` reproduced it from committed
+data alone.
+
+**Problem it solves.** "160 goals held out of training" was true of the output
+pairs only. The sealed inputs were seen, verbatim, during training. The 160/160
+diagonal was presented as generalization; it is recall on seen prompts.
+
+**Expected impact.** No reader takes the sealed matrix as a generalization
+result. The template-held-out, paraphrase and out-of-domain sealed set in the
+verification report's Phase 2 is the fix; it is not built.
+
+**Measured impact.** 147/160 sealed goals (91.9%) appear verbatim in the
+training split (goals 1-700). Dev: 94/100 (94.0%). 226 distinct goal strings
+across all 960 goals; 101 distinct among the 160 sealed. Mechanism, in
+`data/generate.py` `stage_goals`: goal *i* uses template `pool[(i-1) % 40]` over
+one seed-shuffled pool, so sealed goal 801 reuses goal 1's template, and
+slotless templates render byte-identical text (sealed id 801 == train id 1,
+word for word). Template count: 40, 13 of them slotless, per
+`verify/evidence/b1_contamination.txt`; the review stated 25 and 6. The
+147/160, 94/100 and 226 figures do not depend on that count and reproduce
+exactly. Entry 8's line "their goals cannot appear in training data" was the
+intent; this entry records that the split did not enforce it.
+
+**Evidence.** Script `verify/check_b1_contamination.py`, output
+`verify/evidence/b1_contamination.txt`, report `verify/VERIFICATION_REPORT.md`
+section B1.
+
+## Entry 19 — Off-diagonal 0/160 is structural, not evidence about the adapters
+
+**Date:** 2026-09-30
+
+**What.** Restated the separation matrix in `RESULTS.md` section (a), README's
+Results bullet and `ARCHITECTURE.md`'s claims table. Struck the sentence "The
+off-diagonal zeros matter as much as the diagonal 160s — an adapter that had
+merely learned 'emit JSON' would score on both columns" and replaced it with the
+structural statement.
+
+**Why.** An external review reported that no output can pass both tenant
+contracts. `verify/check_b2_tautology.py` reproduced it by construction.
+
+**Problem it solves.** The zeros were presented as a finding. They were fixed
+before any adapter was trained. P(passes rival | passes own) = 0 by
+construction: the two required key sets are disjoint apart from `initiative`,
+and `data/verifier.py` rejects both missing and unknown keys.
+
+**Expected impact.** The matrix is read for what it carries: the diagonal
+("emits own valid schema") and the base row. Reporting schema-pass and
+vocab-pass separately, and stating off-diagonal attainability in the table, is
+Phase 2 item 3; not done.
+
+**Measured impact.** Meridian required keys: approval_chain, compliance_notes,
+initiative, risks, timeline_horizon, work_packages. Vantage: blockers,
+initiative, okrs, sprint_plan, success_metric, timeline_weeks. Intersection:
+`initiative`. A schema-valid Meridian object fails Vantage with 5 missing-key
+errors plus an unknown-key error, and the reverse. No single JSON can satisfy
+both schemas. Vantage's vocabulary gate is satisfied by its own schema keys: a
+neutral-prose Vantage object passes its full contract with keys supplying 5 own
+terms against 2 required. Meridian's keys supply 1 of 2, so a neutral-prose
+Meridian object fails its own vocabulary gate; that gate adds a small real
+check.
+
+**Evidence.** Script `verify/check_b2_tautology.py`, output
+`verify/evidence/b2_tautology.txt`, report `verify/VERIFICATION_REPORT.md`
+section B2.
+
+## Entry 20 — The metric is input-independent: verify() never sees the goal
+
+**Date:** 2026-09-30
+
+**What.** Stated input-independence as a capability limit in README's Results
+bullet, RESULTS section (a) under the matrix, RESULTS limit (f)1, and the new
+"What this experiment does and does not show" section.
+
+**Why.** An external review reported that a plan unrelated to the goal passes.
+`verify/check_b3_input_independence.py` reproduced it.
+
+**Problem it solves.** RESULTS (f)1 framed the gap as a quality caveat ("not
+semantics"). It is a capability limit: the metric cannot detect whether the
+model read the input at all. A model emitting one memorized valid plan for every
+goal would score 160/160. Combined with entry 18, the sealed matrix cannot
+separate goal-conditioned planning from memorized schema emission.
+
+**Expected impact.** No claim of task competence beyond schema emission.
+Goal-conditional scoring, with the cake plan as a permanent must-fail fixture,
+is Phase 2 item 2; not built.
+
+**Measured impact.** Signature: `verify(text: 'str', tenant: 'str') -> 'dict'`.
+No goal parameter, so goal-conditioning is impossible by design. A schema-valid
+Meridian plan about baking a chocolate cake returns `ok=True, schema_ok=True,
+vocab_ok=True, errors=[]`. `MIN_OWN_TERMS = 2`; with all prose reduced to ".",
+schema keys alone supply 1 own term for Meridian and 5 for Vantage.
+`data/verifier.py` is unchanged.
+
+**Evidence.** Script `verify/check_b3_input_independence.py`, output
+`verify/evidence/b3_input_independence.txt`, report
+`verify/VERIFICATION_REPORT.md` section B3.
+
+## Entry 21 — Decode headline: +20.4% ITL replaces -10.02% tokens/sec
+
+**Date:** 2026-09-30
+
+**What.** Replaced the -10.0% tokens/sec decode headline with +20.4% ITL p50 in
+`README.md` (cost paragraph, honest-limits pointer), `RESULTS.md` section (b)
+(comparison table, reading paragraph, cost summary) and limit (f)4, and
+`ARCHITECTURE.md` section 4 and its claims table. The old figure stays visible,
+struck through, with the reason it understates.
+
+**Why.** An external review reported that the headline decode metric understates
+cost. `verify/check_b7_itl.py` reproduced it from the committed summary JSON.
+
+**Problem it solves.** Both metrics were published in
+`bench/logs/matrix_summary_endpoint_session1.json` and in RESULTS' full table.
+The narrative headlined the flattering one. Tokens/sec per request is
+`output_tokens / e2e_s`, so TTFT sits in the denominator and longer generations
+amortize it. ITL, `(last_token_s - ttft_s)/(tokens-1)`, excludes TTFT and is the
+clean decode metric. Entry 17 corrected -10.1% to -10.02%; it corrected the
+digits of the wrong metric.
+
+**Expected impact.** The cost headline states decode cost. A matched-length
+rerun (`min_tokens = max_tokens`) is Phase 2 item 4; not run.
+
+**Measured impact.** ITL p50: base-only 0.011319s, two-lora-interleaved
+0.013628s, ratio 1.2040, +20.4%. Tokens/sec p50: 69.451 -> 62.495, -10.02%.
+Caveat carried from RESULTS (b): the arms decoded unequal lengths, 378 vs 512
+mean output tokens, so even +20.4% is not fully attributable to LoRA without a
+matched-length rerun.
+
+**Evidence.** Script `verify/check_b7_itl.py`, output
+`verify/evidence/b7_itl.txt`, report `verify/VERIFICATION_REPORT.md` section B7.

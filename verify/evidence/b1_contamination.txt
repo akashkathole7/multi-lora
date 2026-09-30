@@ -1,0 +1,20 @@
+total goals in file:                960
+templates in GOAL_TEMPLATES:        40
+templates with no slots:            13
+distinct goal strings, all 960:     226
+distinct in train (1-700):          210
+distinct in dev (701-800):          78
+distinct in sealed (801-960):       101
+sealed goals verbatim in train:     147/160 (91.9%)
+dev goals verbatim in train:        94/100 (94.0%)
+
+template-index mapping: goal i uses shuffled_pool[(i-1) % 40],
+so goal 801 shares a template with goal 1,
+goal 802 with goal 2, etc. (same shuffle, same seed).
+
+5 example sealed goals that appear verbatim in the training split:
+  sealed id 801 == train id 1: Consolidate our three overlapping tools into one within the next planning period
+  sealed id 802 == train id 82: Improve first-contact resolution to 95% in the support organisation.
+  sealed id 803 == train id 83: Get a self-serve path to first value working within a year.
+  sealed id 804 == train id 4: Reduce the number of systems that hold customer records to one.
+  sealed id 805 == train id 5: Make our capacity forecast accurate enough to plan hiring against.

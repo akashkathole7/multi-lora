@@ -1,0 +1,31 @@
+Meridian-schema JSON, neutral prose
+  vs MERIDIAN contract: ok=False  schema_ok=True  vocab_ok=False
+    - vocab: meridian needs >= 2 distinct own terms, found 1 (\bdeliverables?\b)
+  vs VANTAGE  contract: ok=False  schema_ok=False  vocab_ok=False
+    - missing required key: blockers
+    - missing required key: okrs
+    - missing required key: sprint_plan
+    - missing required key: success_metric
+    - missing required key: timeline_weeks
+    - unknown top-level key: approval_chain
+
+Vantage-schema JSON, neutral prose
+  vs MERIDIAN contract: ok=False  schema_ok=False  vocab_ok=False
+    - missing required key: approval_chain
+    - missing required key: compliance_notes
+    - missing required key: risks
+    - missing required key: timeline_horizon
+    - missing required key: work_packages
+    - unknown top-level key: blockers
+  vs VANTAGE  contract: ok=True  schema_ok=True  vocab_ok=True
+
+Key-set analysis:
+  meridian required keys: ['approval_chain', 'compliance_notes', 'initiative', 'risks', 'timeline_horizon', 'work_packages']
+  vantage  required keys: ['blockers', 'initiative', 'okrs', 'sprint_plan', 'success_metric', 'timeline_weeks']
+  intersection: ['initiative']
+  disjoint apart from 'initiative': True
+  verifier rejects unknown top-level keys -> a JSON with meridian's keys
+  always carries keys unknown to vantage and lacks keys vantage requires.
+  Conclusion test: can ANY single JSON object pass both schemas? It would
+  need both key sets simultaneously; each side rejects the other's keys as
+  unknown -> structurally impossible.

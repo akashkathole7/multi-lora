@@ -12,19 +12,36 @@ verdict on any machine.
 **Status: complete and measured.** Both adapters are trained, both were served
 together from one A100 behind an Azure ML managed online endpoint, and the sealed
 evaluation has been run once and reported. The endpoint has been torn down and the
-deletion verified. Every stage is in `change_log.md`, 17 entries, mistakes included.
+deletion verified. Every stage is in `change_log.md`, 21 entries, mistakes included
+(17 build entries, then 4 verification corrections, entries 18-21).
 
 ## Results
 
 Full write-up with every table and every citation: **[RESULTS.md](RESULTS.md)**.
 
-Two headline numbers:
+Two headline numbers. The first is corrected below by an independent
+verification pass (`verify/VERIFICATION_REPORT.md`, `change_log.md` entries
+18-21):
 
-- **Sealed separation 100 / 0 / 0.** On 160 goals held out of training and
-  hash-locked before the run, the Meridian adapter satisfied its own contract
-  160/160 and its rival's 0/160; the Vantage adapter the exact reverse; the base
-  model, with the identical system message, satisfied neither on any goal. 480
-  requests, 0 errors. Source: `eval/logs/separation_matrix_sealed.json`.
+- **Sealed separation 100 / 0 / 0 — on seen inputs, with structural zeros.** On
+  160 sealed goals, ~~held out of training~~ whose *output* pairs were held out
+  of training, hash-locked before the run, the Meridian adapter satisfied its own
+  contract 160/160 and its rival's 0/160; the Vantage adapter the exact reverse;
+  the base model, with the identical system message, satisfied neither on any
+  goal. 480 requests, 0 errors. Source: `eval/logs/separation_matrix_sealed.json`.
+  Three facts bound what that number shows:
+  - **91.9% of the sealed set is verbatim training text.** 147/160 sealed goal
+    strings appear word for word in the training split. The sealed set sealed
+    outputs, not inputs. The 160/160 measures recall on seen prompts, not
+    generalization (`verify/evidence/b1_contamination.txt`).
+  - **The 0/160 off-diagonal is structural.** The two schemas share one required
+    key and the verifier rejects unknown keys, so no JSON can satisfy both. The
+    zeros were fixed before any adapter was trained
+    (`verify/evidence/b2_tautology.txt`).
+  - **The metric cannot detect whether the model read the goal.** `verify()`
+    takes no goal parameter; a schema-valid plan about baking a cake passes. A
+    model emitting one memorized valid plan for every goal would score 160/160
+    (`verify/evidence/b3_input_independence.txt`).
 - **Tenant switch +53 ms p50, below jitter.** Alternating adapters every request
   versus repeating one adapter cost +52.9 ms at p50, against p95-p50 spreads of
   198-562 ms on those same arms (`bench/logs/matrix_summary_endpoint_session1.json`).
@@ -33,13 +50,24 @@ Two headline numbers:
   server start; there is no runtime cold path in this serving design.
 
 The cost side of the ledger is in RESULTS too: multi-LoRA serving measured
-**+9.3% TTFT and -10.0% tokens/sec** against a base-only arm, roughly double the
-5% that was hoped for.
+**+9.3% TTFT and +20.4% inter-token latency (ITL p50, 0.011319s -> 0.013628s)**
+against a base-only arm, against a 5% target. This line previously read
+~~+9.3% TTFT and -10.0% tokens/sec, roughly double the 5% that was hoped for~~.
+The -10.02% is real and understates decode cost: tokens/sec is
+`output_tokens / e2e_s`, so TTFT sits in the denominator and longer generations
+amortize it. ITL is the clean decode metric. Both were published in the summary
+JSON; the headline picked the smaller one (`verify/evidence/b7_itl.txt`). Even
++20.4% is not fully attributable to LoRA: the arms decoded unequal lengths (378
+vs 512 mean output tokens), and no matched-length rerun exists.
 
 ## Honest limits
 
-`RESULTS.md` section (f), "What breaks", is the list: the verifier checks
-vocabulary and schema rather than semantics; the two dev-set vantage misses and
+`RESULTS.md` opens with "What this experiment does and does not show"; read it
+first. Section (f), "What breaks", is the list: 91.9% of the sealed inputs are
+verbatim training text; the off-diagonal zeros are structural; the verifier
+checks vocabulary and schema rather than semantics and takes no goal, so it
+cannot detect whether the model read the input; decode cost is +20.4% ITL, not
+the -10.0% tokens/sec first headlined; the two dev-set vantage misses and
 the exact words that caused them; one GPU is shared throughput; the LoRA compute
 tax; static adapter registration bounds the resident tenant count and thrashing
 beyond it is unmeasured; the evaluation data is synthetic from a single
@@ -63,7 +91,7 @@ live endpoint, and the sealed matrix.
 ```
 RESULTS.md             every measured number, with the log file behind each one
 ARCHITECTURE.md        how the whole thing works, for a non-specialist reader
-change_log.md          the project's memory: 17 entries, mistakes included
+change_log.md          the project's memory: 21 entries, mistakes included
 data/verifier.py       deterministic schema + vocabulary checker (stdlib only)
 data/test_outputs.py   the fixture verdict table, pytest or plain python
 data/generate.py       goals -> outputs -> filter -> package
@@ -274,6 +302,13 @@ run unless `--allow-rerun` is given. The sealed set is `eval/sealed_goals.jsonl`
 `eval/SEALED.sha256` at Stage 1 and run exactly once, at Stage 4. The hash is
 `d54319eb…47fb15` and it was checked before the first request went out
 (`data/logs/sealed_run.log`, first lines).
+
+The lock held; what it locked was outputs, not inputs. 147/160 (91.9%) of the
+sealed goal texts appear verbatim in the training split. `data/generate.py`
+assigns goal *i* the template `pool[(i-1) % 40]` over one seed-shuffled pool of
+40 templates, 13 with no slots, so sealed goal 801 is training goal 1 word for
+word (`verify/check_b1_contamination.py`,
+`verify/evidence/b1_contamination.txt`).
 
 ## Training
 

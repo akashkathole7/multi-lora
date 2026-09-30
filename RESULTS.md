@@ -14,10 +14,69 @@ The endpoint has been torn down and the deletion read back
 
 ---
 
+## What this experiment does and does not show
+
+Written after an independent reproduction of four findings from an external
+review (`verify/VERIFICATION_REPORT.md`, `change_log.md` entries 18-21). Every
+number in this section was printed by a script in `verify/`, with raw output in
+`verify/evidence/`.
+
+**What holds.**
+
+- **Provenance.** Every number in this file names the log it came from, and the
+  raw per-request JSONL behind each summary is committed.
+- **The pre-registration mechanism.** `eval/SEALED.sha256` was written at Stage
+  1, checked before the first sealed request, and the sealed run happened once.
+  The lock worked. What it locked is the first item in the next list.
+- **The deterministic verifier.** `data/verifier.py` has no model client and no
+  network. The same response gets the same verdict on any machine.
+- **Cost discipline.** One endpoint session, 1.618 hours, $5.94 at list price;
+  every wasted dollar is itemised in the change log (section (e)).
+- **TTFT and swap numbers, as system measurements.** +9.3% TTFT p50, warm swap
+  -48 ms / +4 ms, tenant switch +52.9 ms, no runtime cold path (sections (b),
+  (c)). These describe the serving system. They do not depend on the eval set.
+
+**What does not.**
+
+- **Generalization.** 91.9% of the sealed set is verbatim training text: 147/160
+  sealed goal strings appear word for word in the training split; for the dev
+  set it is 94/100. `data/generate.py` assigns goal *i* the template
+  `pool[(i-1) % 40]` over one seed-shuffled pool of 40 templates, 13 of them
+  with no slots, so sealed goal 801 is training goal 1 word for word. The sealed
+  set sealed outputs, not inputs. The 160/160 diagonal measures recall on seen
+  prompts. Script `verify/check_b1_contamination.py`, output
+  `verify/evidence/b1_contamination.txt`.
+- **The off-diagonal as evidence.** P(passes rival | passes own) = 0 by
+  construction. The two tenants' required top-level keys share only
+  `initiative`, and the verifier rejects both missing and unknown keys. No JSON
+  can satisfy both schemas. The 0/160 cells were fixed before any adapter was
+  trained. Vantage's vocabulary gate is also satisfied by its own schema keys:
+  keys alone supply 5 own terms against 2 required. Meridian's keys supply 1 of
+  2, so Meridian's vocabulary gate adds a small real check. Script
+  `verify/check_b2_tautology.py`, output `verify/evidence/b2_tautology.txt`.
+- **Task competence beyond schema emission.** `verify(text, tenant)` takes no
+  goal parameter. A schema-valid Meridian plan about baking a chocolate cake
+  passes with `ok=True, errors=[]`. The metric cannot detect whether the model
+  read the input at all. A model emitting one memorized valid plan for every
+  goal would score 160/160. Script `verify/check_b3_input_independence.py`,
+  output `verify/evidence/b3_input_independence.txt`.
+
+**Corrected in place.** The decode cost of multi-LoRA is +20.4% ITL p50, not the
+-10.02% tokens/sec this file first headlined (section (b)). Script
+`verify/check_b7_itl.py`, output `verify/evidence/b7_itl.txt`.
+
+What the matrix does show: each adapter emits its own tenant's valid schema, in
+its own vocabulary, on every sealed goal, and the base model with the same system
+message does not.
+
+---
+
 ## (a) Sealed separation matrix
 
-160 goals held out of training, hash-locked before the run, three arms, 480
-requests, concurrency 4, 0 HTTP errors, wall time 1151.65s.
+160 sealed goals, ~~held out of training~~ whose *output* pairs were held out of
+training (91.9% of the *input* texts were not — see directly below the table),
+hash-locked before the run, three arms, 480 requests, concurrency 4, 0 HTTP
+errors, wall time 1151.65s.
 
 Source: `eval/logs/separation_matrix_sealed.json`
 (raw: `eval/logs/separation_raw_sealed.jsonl`, console:
@@ -28,6 +87,22 @@ Source: `eval/logs/separation_matrix_sealed.json`
 | base | 0.0% (0/160) | 0.0% (0/160) | 160 | 0 |
 | meridian | 100.0% (160/160) | 0.0% (0/160) | 160 | 0 |
 | vantage | 0.0% (0/160) | 100.0% (160/160) | 160 | 0 |
+
+**Three facts bound this table.**
+
+1. **91.9% of the sealed set is verbatim training text.** 147/160 sealed goal
+   strings appear word for word in the training split
+   (`verify/evidence/b1_contamination.txt`). The sealed set sealed outputs, not
+   inputs. The 160s on the diagonal are recall on seen prompts, not
+   generalization.
+2. **The off-diagonal 0/160 cells are structural.** No JSON can satisfy both
+   tenant schemas: disjoint required keys apart from `initiative`, plus
+   unknown-key rejection. The zeros carry no information about the adapters
+   (`verify/evidence/b2_tautology.txt`).
+3. **The metric is input-independent.** `verify()` takes no goal parameter. It
+   cannot detect whether the model read the goal; one memorized valid plan
+   emitted for every goal would score 160/160
+   (`verify/evidence/b3_input_independence.txt`).
 
 Goals file `eval/sealed_goals.jsonl`, sha256
 `d54319eb6b8f78e314bec265ce052af8b3d1fe1192ddd5a15bffb4586d47fb15`, checked
@@ -40,14 +115,20 @@ coming from *this* prompt. One control was not run and is listed in section (f):
 a base arm carrying each tenant's house-style rules as a long system prompt. The
 harness supports it unchanged; without it, this matrix proves the adapters beat
 the deployed prompt, not that no prompt could close part of the gap. The two adapter rows are the diagonal: each adapter
-satisfies its own tenant's contract on every goal and its rival's on none. The
-off-diagonal zeros matter as much as the diagonal 160s — an adapter that had
-merely learned "emit JSON" would score on both columns. Verification is
+satisfies its own tenant's contract on every goal and its rival's on none. This
+paragraph previously said: ~~The off-diagonal zeros matter as much as the
+diagonal 160s — an adapter that had merely learned "emit JSON" would score on
+both columns.~~ That is wrong. An adapter that emits its own valid schema cannot
+score on the rival column: P(passes rival | passes own) = 0 by construction. The
+informative content of the matrix is the diagonal ("emits own valid schema") and
+the base row. Verification is
 `data/verifier.py`, which is pure stdlib, has no model client and no network, so
 the same response gets the same verdict on any machine. No model judged any
 output.
 
-For comparison, the dev-set matrix run earlier on 100 held-out goals
+For comparison, the dev-set matrix run earlier on 100 ~~held-out~~ dev goals,
+whose outputs were excluded from training and 94/100 of whose goal texts appear
+verbatim in the training split (`verify/evidence/b1_contamination.txt`)
 (`eval/logs/separation_matrix_20260825T103026225Z.json`, `reports/iter_02.md`):
 base 0/0, meridian 100/100 own and 0/100 rival, vantage 98/100 own and 0/100
 rival. The two vantage misses are itemised in section (f).
@@ -88,7 +169,7 @@ deltas. Mean output tokens per arm, from the raw log: base-only 378.3,
 base-plus-one-lora 415.4, both two-lora arms 512.0 (the cap). The -32% req/s
 against base is therefore a task-length effect — the adapters emit ~34% more
 tokens per response — not a tenancy cost; normalized per token, the multi-LoRA
-cost is the -10.0% above.
+decode cost is ~~the -10.0% above~~ the +20.4% ITL p50 below.
 
 **The honest reading.** The project's stated aspiration for objective #2 was that
 multi-LoRA serving cost under 5% overhead versus base
@@ -99,12 +180,27 @@ against `base-only`:
 | --- | ---: | ---: | ---: |
 | TTFT p50 | 1.123934s | 1.228817s | +9.33% |
 | TTFT p95 | 1.277523s | 1.426478s | +11.66% |
-| tokens/sec per request p50 | 69.451 | 62.495 | -10.02% |
+| **ITL p50 (decode, headline)** | **0.011319s** | **0.013628s** | **+20.4%** |
+| tokens/sec per request p50 (former headline) | 69.451 | 62.495 | -10.02% |
 | tokens/sec aggregate | 269.929 | 248.693 | -7.87% |
 | e2e p50 | 5.558431s | 8.192628s | +47.39% |
 
-Time to first token is 9.3% worse. Per-request generation rate is 10.0% worse.
-Both are roughly double the 5% target and they are reported as measured.
+Time to first token is 9.3% worse. Decode is 20.4% slower per token (ITL p50,
+`verify/check_b7_itl.py`, `verify/evidence/b7_itl.txt`). Both miss the 5% target
+and they are reported as measured.
+
+This paragraph previously read: ~~Per-request generation rate is 10.0% worse.
+Both are roughly double the 5% target.~~ The -10.02% tokens/sec figure understates
+decode cost. Tokens/sec per request is `output_tokens / e2e_s`, so TTFT sits in
+the denominator, and longer generations amortize prefill and shrink the delta.
+ITL is `(last_token_s - ttft_s)/(tokens-1)`: TTFT is excluded, so it is the clean
+decode metric. Both figures were in the summary JSON and in the full table above;
+the narrative picked the one under half the size.
+
+**Caveat on the +20.4%.** The arms decoded unequal lengths: 378 mean output
+tokens for base-only, 512 for the two-lora arms. Even +20.4% is not fully
+attributable to LoRA without a matched-length rerun (`min_tokens = max_tokens`),
+and that rerun has not been done.
 
 **The e2e number is not a third finding, and it is not cache thrashing.** The
 +47% end-to-end figure decomposes into output length times per-token rate.
@@ -124,7 +220,8 @@ Note that `tokens_per_sec` is defined as `output_tokens / e2e_s`, so this
 decomposition is an accounting identity rather than an independent confirmation.
 What it establishes is that the e2e gap is dominated by the adapters producing
 more tokens, not by a collapse in serving rate. The honest cost of multi-LoRA on
-this hardware is the +9.3% TTFT and the -10.0% token rate, not +47%.
+this hardware is the +9.3% TTFT and the +20.4% ITL p50, not +47% and not
+~~the -10.0% token rate~~ stated here before.
 
 **Cause.** LoRA's extra GEMMs per targeted projection. The server ran with
 `--max-loras 4` and both adapters were resident throughout
@@ -393,11 +490,18 @@ load/unload API); NIM exposes the same via its adapter store. This project serve
 statically registered adapters only, so "add a tenant without restarting" is a
 documented capability here, not a measured one.
 
-**1. The verifier checks vocabulary and schema, not semantics.** A pass means the
-output has the right shape, uses the tenant's own terms and uses none of the
-rival's. It does not mean the plan is good, feasible, or correct for the goal.
-100% on the sealed matrix is 100% on tenant-style compliance. Anyone reading it
-as "the model is right 100% of the time" is reading it wrong. What the design buys
+**1. The verifier checks vocabulary and schema, not semantics, and it cannot see
+the input.** A pass means the output has the right shape, uses the tenant's own
+terms and uses none of the rival's. It does not mean the plan is good, feasible,
+or correct for the goal. 100% on the sealed matrix is 100% on tenant-style
+compliance. Anyone reading it as "the model is right 100% of the time" is
+reading it wrong. This is a capability limit, not a quality caveat:
+`verify(text, tenant)` takes no goal parameter, so the metric cannot detect
+whether the model read the input at all. A schema-valid Meridian plan about
+baking a chocolate cake passes with `errors=[]`, and a model emitting one
+memorized valid plan for every goal would score 160/160
+(`verify/check_b3_input_independence.py`,
+`verify/evidence/b3_input_independence.txt`). What the design buys
 is that the measurement is deterministic — no model judged any output, so the
 number does not drift between runs, machines or graders.
 
@@ -418,8 +522,10 @@ concurrency 4 with two tenants the endpoint delivered 0.486 req/s
 latency guarantee needs its own replica, and that tenant's economics revert to
 the dedicated column in section (e).
 
-**4. The LoRA compute tax is real: +9.3% TTFT, -10.0% tokens/sec.** Measured, in
-section (b), against a 5% aspiration. It is the cost of the extra GEMMs and it
+**4. The LoRA compute tax is real: +9.3% TTFT, +20.4% ITL p50** (previously
+stated here as ~~-10.0% tokens/sec~~, which understates it; section (b)).
+Measured, in section (b), against a 5% aspiration. The ITL delta is not fully
+attributable to LoRA until a matched-length rerun exists. It is the cost of the extra GEMMs and it
 does not go away with tuning flags. Budget for it.
 
 **5. Static registration bounds the resident tenant count.** The property that
@@ -438,7 +544,9 @@ schema (`data/generated/full/filter_summary.json`). The generator was never
 trusted — every row passed the deterministic verifier before reaching training —
 but one generator's idea of "Meridian voice" is still one generator's idea. The
 goals are fictional and the tenants are fictional. Real customer data would
-differ in ways this measurement cannot anticipate.
+differ in ways this measurement cannot anticipate. The sealed goals are also not
+unseen inputs: 147/160 (91.9%) are verbatim training text, disclosed at the
+matrix in section (a).
 
 **7. The NeMo API route is dead in the 26.08 container.** The adapters were
 trained with HF PEFT + TRL (`train/train_lora_hf.py`), inside
@@ -489,8 +597,12 @@ self-tested against a mock server before any adapter existed
 (`change_log.md` entry 3), so the correct answers were fixed by construction
 before there was a result to attach to them.
 
-`change_log.md` holds 17 entries and is the project's memory. It records the
-mistakes at the same resolution as the results: the training route that had to be
+`change_log.md` holds 21 entries and is the project's memory. It records the
+mistakes at the same resolution as the results: a sealed set whose inputs are
+91.9% verbatim training text, an off-diagonal that was structural, a metric
+that never sees the goal, and a decode headline (-10.02% tokens/sec) under half
+the size of the +20.4% ITL cost (entries 18-21, each citing its `verify/` script and evidence file);
+the training route that had to be
 abandoned (entry 9), the YAML folded-scalar bug that billed an A100 for 3.2 hours
 to serve zero requests (entry 10 and its correction), a cancel command that
 silently failed and was reported as done, evidence files silently dropped from a

@@ -1,0 +1,18 @@
+itl_p50_s per arm:
+  base-only              itl_p50_s=0.011319  itl_p95_s=0.011642  tokens_per_sec_p50=69.451
+  base-plus-one-lora     itl_p50_s=0.013248  itl_p95_s=0.013573  tokens_per_sec_p50=62.558
+  two-lora-round-robin   itl_p50_s=0.013633  itl_p95_s=0.014029  tokens_per_sec_p50=61.769
+  two-lora-interleaved   itl_p50_s=0.013628  itl_p95_s=0.014025  tokens_per_sec_p50=62.495
+
+ITL p50 interleaved / base = 0.013628 / 0.011319 = 1.2040  ->  +20.4% slower decode
+Headlined metric: tokens_per_sec_p50 69.451 -> 62.495  =  -10.02%
+
+Definition check (from the summary file itself):
+  itl_definition: per-request mean (last_token_s - ttft_s)/(tokens-1), p50/p95 across requests
+  tokens_per_sec per request = output_tokens / e2e_s -> includes TTFT in the
+  denominator, so longer generations amortize prefill and shrink the delta.
+
+Reviewer's numbers: 0.011319 vs 0.013628 -> +20.4%. Mine above.
+Caveat carried from the repo's own RESULTS (b): the arms decode different
+output lengths (378 vs 512 mean tokens), so even the ITL delta is not fully
+attributable to LoRA without a matched-length rerun.
